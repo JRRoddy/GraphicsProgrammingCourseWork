@@ -3,10 +3,10 @@
 layout(location = 0) out vec4 colour;
 
 in vec4 fragmentPosLightSpace;
-//in vec3 normal;
+in vec3 normal;
 in vec3 fragmentPos;
 in vec2 texCoord;
-in mat3 tangentToWorld;
+
 struct directionalLight
 {
 	vec3 colour;
@@ -50,21 +50,15 @@ layout (std140, binding = 0) uniform b_camera
 
 uniform vec3 u_albedo;
 uniform sampler2D u_albedoMap;
-uniform sampler2D u_specularMap;
-uniform sampler2D u_normalMap;
 
 // forward declare
 vec3 getDirectionalLight() ;
 vec3 getPointLight(int idx) ;
 vec3 getSpotLight(int idx) ;
-float specularStrength = vec3(texture(u_specularMap,texCoord)).r;
-vec3 normalFromMap = texture(u_normalMap, texCoord).rgb;
-vec3 normal = normalize(tangentToWorld * (normalFromMap * 2.0 - 1.0));
+
+
 void main()
 {
-
-       
-
 	vec3 result = vec3(0.0, 0.0, 0.0); 
 	
 	result += getDirectionalLight();
@@ -89,6 +83,7 @@ vec3 getDirectionalLight()
 	vec3 ambient = ambientStrength * dLight.colour;
 	float diff = max(dot(normal, -dLight.direction), 0.0);
 	vec3 diffuse = diff * dLight.colour;
+	float specularStrength = 0.8;
 	vec3 viewDir = normalize(u_viewPos - fragmentPos);
 	vec3 reflectDir = reflect(dLight.direction, normal);  
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64);
@@ -106,6 +101,7 @@ vec3 getPointLight(int idx)
 	vec3 lightDir = normalize(pLights[idx].position - fragmentPos);
 	float diff = max(dot(norm, lightDir), 0.0);
 	vec3 diffuse = diff * attn * pLights[idx].colour;
+	float specularStrength = 0.8;
 	vec3 viewDir = normalize(u_viewPos - fragmentPos);
 	vec3 reflectDir = reflect(-lightDir, norm);  
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64);
@@ -127,10 +123,12 @@ vec3 getSpotLight(int idx)
 		float attn = 1.0/(sLights[idx].constants.x + (sLights[idx].constants.y* distance) + (sLights[idx].constants.z * (distance * distance)));
 		float diff = max(dot(norm, lightDir), 0.0);
 		vec3 diffuse = diff * attn * sLights[idx].colour;
+		float specularStrength = 0.8;
 		vec3 viewDir = normalize(u_viewPos - fragmentPos);
 		vec3 reflectDir = reflect(-lightDir, norm);  
 		float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64);
 		vec3 specular = specularStrength * spec * attn * sLights[idx].colour;  
+	
 		float epsilon = sLights[idx].cutOff - sLights[idx].outerCutOff;
 		float intensity = clamp((theta - sLights[idx].outerCutOff) / epsilon, 0.0, 1.0); 
 	

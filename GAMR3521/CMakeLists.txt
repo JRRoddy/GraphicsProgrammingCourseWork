@@ -5,7 +5,10 @@ project(${APPLICATION_NAME} VERSION 1.0.0)
 # Shader Files
 set (PROJECT_SHADER_FILES
 	"assets/shaders/phongVert.glsl"
-	"assets/shaders/phongFrag.glsl"
+	"assets/shaders/phongFrag.glsl" 
+        "assets/shaders/BaseVertexShader.glsl" 
+        "assets/shaders/BaseFragementShader.glsl" 
+        
 )
 
 # Application Files
