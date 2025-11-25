@@ -113,7 +113,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	cube.translation = glm::vec3(0.f, -1.f, -6.f);
 	cube.rotation = glm::quat(glm::vec3(0.0f, 0.4f, 0.0f));
 	cube.recalc();
-	m_scene->m_actors.push_back(cube);
+	/*m_scene->m_actors.push_back(cube);*/
 
 	VBOLayout modelLayout = {
 		{GL_FLOAT, 3}, // Position
@@ -177,7 +177,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	skyBoxMat->setValue("u_cubeMap", skyBoxMap);
 	
-	createActor(glm::vec3(0.0f, 0.0f, 0.0f), skyBoxVao, skyBoxMat);
+	createActor(glm::vec3(0.0f, 0.0f, 0.0f), skyBoxVao, skyBoxMat, m_skyBoxIdx);
 
 	// add  a directional light to the scene 
 	DirectionalLight dl;
@@ -202,7 +202,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	mainPass.parseScene();
 	mainPass.target = std::make_shared<FBO>(); // Default framebuffer
 	// define the projection matrix to be use 
-	mainPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 100.f);
+	mainPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 500.f);
 	mainPass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
 
 	mainPass.camera.updateView(m_scene->m_actors.at(m_cameraIdx).transform);
@@ -214,45 +214,15 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	mainPass.setCachedValue("b_lights", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
 	mainPass.setCachedValue("b_lights", "dLight.colour", m_scene->m_directionalLights.at(0).colour);
 	mainPass.setCachedValue("b_lights", "dLight.direction", m_scene->m_directionalLights.at(0).direction);
+	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(mainPass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(1.6f, 0.6f, 2.f), 0.5f);
 
 	addPointLightDataToPass(mainPass,PointLightNum);
 
-	RenderPass FloorPass;
-
-	FloorPass.scene = m_scene; 
-	FloorPass.parseScene(); 
-	FloorPass.target = std::make_shared<FBO>(); 
-
-	FloorPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 100.f); 
-	FloorPass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() }; 
-	FloorPass.camera.updateView(m_scene->m_actors.at(m_cameraIdx).transform); 
-
-	FloorPass.setCachedValue("b_camera", "u_view", FloorPass.camera.view);
-	FloorPass.setCachedValue("b_camera", "u_projection", FloorPass.camera.projection);
-
-	FloorPass.setCachedValue("b_lights", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
-	FloorPass.setCachedValue("b_lights", "dLight.colour", m_scene->m_directionalLights.at(0).colour);
-	FloorPass.setCachedValue("b_lights", "dLight.direction", m_scene->m_directionalLights.at(0).direction);
-	addPointLightDataToPass(FloorPass, PointLightNum);
-
-
-
-	RenderPass skyBox; 
-	skyBox.scene = m_scene;
-	skyBox.parseScene();
-	skyBox.target = std::make_shared<FBO>();
-	skyBox.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 500.f);
-	skyBox.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
-	skyBox.camera.updateView(m_scene->m_actors.at(m_cameraIdx).transform);
-	mainPass.setCachedValue("b_camera", "u_view", skyBox.camera.view);
-	skyBoxMat->setValue("u_skyBoxView", glm::mat4(glm::mat3(skyBox.camera.view)));
-	skyBox.setCachedValue("b_camera", "u_projection", skyBox.camera.projection);
-	// attaching the camera script to the actor 
-	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(mainPass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(1.6f, 0.6f, 2.f), 0.5f);
-	// add the render pass to be used by the renderer 
+	
+	//// attaching the camera script to the actor 
+	//// add the render pass to be used by the renderer 
 	m_renderer.addRenderPass(mainPass); 
-	m_renderer.addRenderPass(FloorPass);
-	m_renderer.addRenderPass(skyBox);
+	
 }
 
 
@@ -278,7 +248,12 @@ void MainLayer::onUpdate(float timestep)
 
 	pass.camera.updateView(camera.transform);
 	pass.setCachedValue("b_camera", "u_view", pass.camera.view);
-	pass.setCachedValue("b_camera", "u_viewPos", camera.translation);
+	pass.setCachedValue("b_camera", "u_viewPos", camera.translation); 
+	
+	m_scene->m_actors.at(m_skyBoxIdx).material->setValue("u_skyBoxView", glm::mat4(glm::mat3(pass.camera.view)));
+
+
+
 }
 
 void MainLayer::onImGUIRender()
@@ -336,6 +311,22 @@ void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr< VAO> Vao, std
 
 }
 
+void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, size_t& outId)
+{
+
+	Actor Object;
+	Object.geometry = Vao;
+	Object.material = mat;
+
+	Object.translation = initialPos;
+
+	Object.recalc(); 
+	outId = m_scene->m_actors.size();
+	m_scene->m_actors.push_back(Object);
+
+
+}
+
 
 void MainLayer::addPointLight(glm::vec3 colour,glm::vec3 position, glm::vec3 attenuation )
 {
@@ -352,10 +343,10 @@ void MainLayer::addPointLights(int PointLightNum)
 	glm::vec3 attenuation = glm::vec3(1.0f, 0.7f, 0.02f);
 	for (int i = 0; i < PointLightNum; i++) {
 
-		glm::vec3 pointLightColour  = glm::vec3(Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0));
-	
+		//glm::vec3 pointLightColour  = glm::vec3(Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0));
+		glm::vec3 pointLightColour = glm::vec3(1.0f, 1.0f, 1.0f);
 		//glm::vec3 position = glm::vec3(Randomiser::uniformFloatBetween(-20.0f, 20.0f), Randomiser::uniformFloatBetween(-2.0f, 2.0f), Randomiser::uniformFloatBetween(-10.0f, 10.0f));
-		glm::vec3 position = glm::vec3(0.0f, -1.0f, 0.0f);
+		glm::vec3 position = glm::vec3(0.0f, -4.0f, 0.0f);
 		addPointLight(pointLightColour, position, attenuation);
 
 	}
