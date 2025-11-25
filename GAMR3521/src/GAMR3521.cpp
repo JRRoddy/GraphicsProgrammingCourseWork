@@ -343,8 +343,8 @@ void MainLayer::addPointLights(int PointLightNum)
 	glm::vec3 attenuation = glm::vec3(1.0f, 0.7f, 0.02f);
 	for (int i = 0; i < PointLightNum; i++) {
 
-		//glm::vec3 pointLightColour  = glm::vec3(Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0));
-		glm::vec3 pointLightColour = glm::vec3(1.0f, 1.0f, 1.0f);
+		glm::vec3 pointLightColour  = glm::vec3(Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0));
+		//glm::vec3 pointLightColour = glm::vec3(1.0f, 1.0f, 1.0f);
 		//glm::vec3 position = glm::vec3(Randomiser::uniformFloatBetween(-20.0f, 20.0f), Randomiser::uniformFloatBetween(-2.0f, 2.0f), Randomiser::uniformFloatBetween(-10.0f, 10.0f));
 		glm::vec3 position = glm::vec3(0.0f, -4.0f, 0.0f);
 		addPointLight(pointLightColour, position, attenuation);
