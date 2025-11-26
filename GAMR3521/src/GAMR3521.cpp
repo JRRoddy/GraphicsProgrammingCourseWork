@@ -282,7 +282,7 @@ void MainLayer::onUpdate(float timestep)
 	pass.camera.updateView(camera.transform);
 	pass.setCachedValue("b_camera", "u_view", pass.camera.view);
 	pass.setCachedValue("b_camera", "u_viewPos", camera.translation); 
-	
+	// ensure that skybox wont move with view matrix 
 	m_scene->m_actors.at(m_skyBoxIdx).material->setValue("u_skyBoxView", glm::mat4(glm::mat3(pass.camera.view)));
 
 
