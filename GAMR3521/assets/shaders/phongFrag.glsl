@@ -30,7 +30,7 @@ struct spotLight
 	float outerCutOff;
 };
 
-const int numPointLights = 1;
+const int numPointLights = 20;
 const int numSpotLights = 1;
 
 layout (std140, binding = 1) uniform b_lights

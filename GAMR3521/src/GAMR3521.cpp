@@ -58,7 +58,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Material> FloorMaterial; 
 	FloorMaterial = std::make_shared<Material>(FloorShader, "u_model");
 
-	FloorMaterial->setValue("u_albedo", glm::vec3(1.0f));
+	FloorMaterial->setValue("u_albedo", floorColour);
 	FloorMaterial->setValue("u_albedoMap", FloorTexture); 
 	// initialsiing the floor actor using the previously defined data 
 	Actor FloorActor;
@@ -143,7 +143,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 
 
-	createActor(glm::vec3(2.0f, -1.0f, -5.0f),ModelVAO,ModelMaterial);
+	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO,ModelMaterial);
 
 	//skybox 
 
@@ -171,7 +171,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	skyBoxShaderDesc.fragmentSrcPath = "./assets/shaders/skyBoxFrag.glsl";
 
 	std::shared_ptr<Shader> skyBoxShader = std::make_shared<Shader>(skyBoxShaderDesc); 
-	std::shared_ptr<CubeMap> skyBoxMap = std::make_shared<CubeMap>(cubeMapPaths,false);
+	std::shared_ptr<CubeMap> skyBoxMap = std::make_shared<CubeMap>(cubeMapPaths,false,false);
 
 	std::shared_ptr<Material> skyBoxMat = std::make_shared<Material>(skyBoxShader,"u_model");
 
@@ -184,6 +184,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	dl.direction = glm::normalize(glm::vec3(1.f, -2.5f, -2.f));
 	m_scene->m_directionalLights.push_back(dl);
 
+
+	
+
 	addPointLights(PointLightNum);
 
 	// add a camera to the scene 
@@ -191,6 +194,34 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	// take the camera id using the size before pushing back to get the index
 	m_cameraIdx = m_scene->m_actors.size();
 	m_scene->m_actors.push_back(camera);
+
+	// sepcifcy that we want the colour buffer to use HDR and set sample to true meaning it will be used 
+	// also specifcy the depth attachement which will not be used currently
+	FBOLayout TypicalLayout = {
+		{AttachmentType::ColourHDR, true, true},
+	    {AttachmentType::Depth, false, false}
+
+	};
+
+	m_screenWidth = m_winRef.getWidthf(); 
+	m_screenHeight = m_winRef.getHeightf();
+	VBOLayout screenQuadLayout = {
+		{GL_FLOAT, 3},
+		{GL_FLOAT, 2}
+	};
+	screenVertices = {
+		// Position            UV
+		0.0f,  0.0f,   0.0f,  0.0f, 1.0f,  // Bottom-left corner
+		m_screenWidth, 0.0f,   0.0f,  1.0f, 1.0f,  // Bottom-right corner
+		m_screenWidth, m_screenHeight, 0.0f,  1.0f, 0.0f,  // Top-right corner
+		0.0f,  m_screenHeight, 0.0f,  0.0f, 0.0f   // Top-left corner
+	 };
+	screenIndices = { 0,1,2,2,3,0 };
+
+	std::shared_ptr<VAO> ScreenQuadVAO = std::make_shared<VAO>(screenIndices);
+
+	ScreenQuadVAO->addVertexBuffer(screenVertices, screenQuadLayout);
+
 
 	// initialise a particualr pass for the renderer to perfrom rendering is often sperated inot particualr passes 
 	// as certain operations need to be performed in particualr order 
@@ -200,9 +231,11 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	// extract all the neccessary information from all the actors we defined in the scene to be used by the shader pass(generally things that define 
 	// the look or surface of the actors like materials)
 	mainPass.parseScene();
-	mainPass.target = std::make_shared<FBO>(); // Default framebuffer
+	mainPass.target = std::make_shared<FBO>();
+	// in process of adding post processing
+	//mainPass.target = std::make_shared<FBO>(m_winRef.getSize(),TypicalLayout); // Default framebuffer
 	// define the projection matrix to be use 
-	mainPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 500.f);
+	mainPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f);
 	mainPass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
 
 	mainPass.camera.updateView(m_scene->m_actors.at(m_cameraIdx).transform);
@@ -340,13 +373,12 @@ void MainLayer::addPointLight(glm::vec3 colour,glm::vec3 position, glm::vec3 att
 
 void MainLayer::addPointLights(int PointLightNum)
 {
-	glm::vec3 attenuation = glm::vec3(1.0f, 0.7f, 0.02f);
+	glm::vec3 attenuation = glm::vec3(1.0f, 0.09f, 0.032f);
 	for (int i = 0; i < PointLightNum; i++) {
 
-		glm::vec3 pointLightColour  = glm::vec3(Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0), Randomiser::uniformFloatBetween(0.0, 1.0));
+		glm::vec3 pointLightColour  = glm::vec3(Randomiser::uniformFloatBetween(0.0, 0.90f), Randomiser::uniformFloatBetween(0.0, 0.90f), Randomiser::uniformFloatBetween(0.0, 0.90f));
 		//glm::vec3 pointLightColour = glm::vec3(1.0f, 1.0f, 1.0f);
-		//glm::vec3 position = glm::vec3(Randomiser::uniformFloatBetween(-20.0f, 20.0f), Randomiser::uniformFloatBetween(-2.0f, 2.0f), Randomiser::uniformFloatBetween(-10.0f, 10.0f));
-		glm::vec3 position = glm::vec3(0.0f, -4.0f, 0.0f);
+		glm::vec3 position = glm::vec3(Randomiser::uniformFloatBetween(-30.0f, 30.0f), -1.0f, Randomiser::uniformFloatBetween(-30.0f, 30.0f));
 		addPointLight(pointLightColour, position, attenuation);
 
 	}
@@ -363,9 +395,6 @@ void MainLayer::addPointLightDataToPass(RenderPass& pass, int PointLightNum)
 		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].colour", m_scene->m_pointLights[i].colour);
 		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].position", m_scene->m_pointLights[i].position);
 		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].constants", m_scene->m_pointLights[i].constants);
-
-
-
 
 	}
 

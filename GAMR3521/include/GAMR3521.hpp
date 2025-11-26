@@ -23,23 +23,29 @@ protected:
 
 private:
 	std::shared_ptr<Scene> m_scene; // Scene where actors reside
+	std::shared_ptr<Scene> m_postProcessScene;
 	Renderer m_renderer;			// Renderer to draw the scene
 	size_t m_cameraIdx;				// Actor index of the camera, used to update scene
 	size_t m_FloorIdx;              // Actor id to keep track of the floor within the actor buffer of the scene
 	size_t m_skyBoxIdx;
 	
+	float m_screenWidth; 
+	float m_screenHeight;
+	std::vector<float> screenVertices;
+	std::vector<uint32_t> screenIndices;
+
 	//Gui
 	bool m_wireFrame{ false }; // render in wireframe 
-	glm::vec3 floorColour = { 1.0f,1.0f,1.0f };// floor colour manipulated by a colour wheel define using ImGui 
-	int PointLightNum = 1;
+	glm::vec3 floorColour = { 0.35f,0.0f,0.0f };// floor colour manipulated by a colour wheel define using ImGui 
+	int PointLightNum = 20;
 
 	std::array<const char*, 6> cubeMapPaths = {
-	"./assets/textures/Skybox/right.png",
-	"./assets/textures/Skybox/left.png",
-	"./assets/textures/Skybox/top.png",
-	"./assets/textures/Skybox/bottom.png",
-	"./assets/textures/Skybox/front.png",
-	"./assets/textures/Skybox/back.png",
+	"./assets/textures/oGLDevSkybox/sp3right.jpg",
+	"./assets/textures/oGLDevSkybox/sp3left.jpg",
+	"./assets/textures/oGLDevSkybox/sp3top.jpg",
+	"./assets/textures/oGLDevSkybox/sp3bot.jpg",
+	"./assets/textures/oGLDevSkybox/sp3front.jpg",
+	"./assets/textures/oGLDevSkybox/sp3back.jpg",
 	};
 	std::vector<uint32_t> skyboxIndices;
 	std::vector<float> skyboxVertices = {

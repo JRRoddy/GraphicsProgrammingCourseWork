@@ -8,6 +8,11 @@ set (PROJECT_SHADER_FILES
 	"assets/shaders/phongFrag.glsl" 
         "assets/shaders/BaseVertexShader.glsl" 
         "assets/shaders/BaseFragementShader.glsl" 
+        "assets/shaders/skyBoxVert.glsl" 
+        "assets/shaders/skyBoxFrag.glsl" 
+        "assets/shaders/PostProcessingVert.glsl" 
+        "assets/shaders/PostProcessingPassFrag.glsl"
+
         
 )
 
