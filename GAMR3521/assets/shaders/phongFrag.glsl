@@ -30,7 +30,7 @@ struct spotLight
 	float outerCutOff;
 };
 
-const int numPointLights = 20;
+const int numPointLights = 7;
 const int numSpotLights = 1;
 
 layout (std140, binding = 1) uniform b_lights
@@ -79,7 +79,11 @@ void main()
 		//result += getSpotLight(i);
 	}
 	      
-	colour = vec4(result * u_albedo, 1.0) * texture(u_albedoMap, texCoord);
+
+        vec3 albedoColour = texture(u_albedoMap,texCoord).rgb; 
+        albedoColour = pow(albedoColour,vec3(2.2)); 
+        
+	colour = vec4(result * albedoColour, 1.0);
 }
 
 
@@ -93,7 +97,7 @@ vec3 getDirectionalLight()
 	vec3 reflectDir = reflect(dLight.direction, normal);  
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64);
 	vec3 specular = specularStrength * spec * dLight.colour;      
-	return ambient * (diffuse + specular);
+	return ambient + (diffuse + specular);
 }
 
 vec3 getPointLight(int idx)

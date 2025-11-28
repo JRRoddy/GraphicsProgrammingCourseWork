@@ -12,6 +12,13 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/skyBoxFrag.glsl" 
         "assets/shaders/PostProcessingVert.glsl" 
         "assets/shaders/PostProcessingPassFrag.glsl"
+        "assets/shaders/GammaCorrectionVert.glsl" 
+        "assets/shaders/GammaCorrectionFrag.glsl"
+        "assets/shaders/colourInverseFrag.glsl"
+        "assets/shaders/relativeLuminanceFrag.glsl"
+        "assets/shaders/luminanceSaturationFrag.glsl"
+        "assets/shaders/luminanceContrastFrag.glsl"
+        "assets/shaders/blurFrag.glsl"
 
         
 )

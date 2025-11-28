@@ -7,7 +7,11 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	// here this essentially refreshes the scene and assings a new refernce to the smart pointer holding the scene 
 	// the scene has buffers that hold all of the current data for the scene such as lighting and objects 
 	m_scene.reset(new Scene);
-
+	m_postProcessScene.reset(new Scene); 
+	m_blurScene.reset(new Scene);
+	m_contrastScreenScene.reset(new Scene);
+	m_saturationScreenScene.reset(new Scene);
+	m_finalResult.reset(new Scene);
 	// create a descriptor for a particualr shader we want to make deifning the type of shader(int this case rasterization shader that uses both a vertex and fragment shader ) 
 	
 	ShaderDescription phongShaderDesc;
@@ -58,7 +62,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Material> FloorMaterial; 
 	FloorMaterial = std::make_shared<Material>(FloorShader, "u_model");
 
-	FloorMaterial->setValue("u_albedo", floorColour);
+	FloorMaterial->setValue("u_albedo", m_floorColour);
 	FloorMaterial->setValue("u_albedoMap", FloorTexture); 
 	// initialsiing the floor actor using the previously defined data 
 	Actor FloorActor;
@@ -83,36 +87,36 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	
 
 	// creare the buffer that will store the vertex data that is described by the layout we defined above for the cube VAO 
-	std::shared_ptr<VAO> cubeVAO;
-	cubeVAO = std::make_shared<VAO>(cubeModel.m_meshes[0].indices); 
-	// defining the vertex data for the VBO using the mesh data at index 0 because the cube model only has one mesh
-	// also passing in the layout of the data to be allocated on the GPU 
-	cubeVAO->addVertexBuffer(cubeModel.m_meshes[0].vertices, cubeLayout);
-	// create and define the diffuse texture that will be used as the base colour for the cube 
-	std::shared_ptr<Texture> cubeTextureDiffuse;
-	// grab the diffuse texture of the cube mesh at index 0 using the defined enmum (as an index) then  taking the cstring of the texture path we accessed 
-	cubeTextureDiffuse = std::make_shared<Texture>(cubeModel.m_meshes[0].texturePaths[aiTextureType_DIFFUSE].string().c_str());
+	//std::shared_ptr<VAO> cubeVAO;
+	//cubeVAO = std::make_shared<VAO>(cubeModel.m_meshes[0].indices); 
+	//// defining the vertex data for the VBO using the mesh data at index 0 because the cube model only has one mesh
+	//// also passing in the layout of the data to be allocated on the GPU 
+	//cubeVAO->addVertexBuffer(cubeModel.m_meshes[0].vertices, cubeLayout);
+	//// create and define the diffuse texture that will be used as the base colour for the cube 
+	//std::shared_ptr<Texture> cubeTextureDiffuse;
+	//// grab the diffuse texture of the cube mesh at index 0 using the defined enmum (as an index) then  taking the cstring of the texture path we accessed 
+	//cubeTextureDiffuse = std::make_shared<Texture>(cubeModel.m_meshes[0].texturePaths[aiTextureType_DIFFUSE].string().c_str());
 
-	std::shared_ptr<Texture> cubeTexture;
+	//std::shared_ptr<Texture> cubeTexture;
 
 	// making a material out of the shader we made and setting the diffuse map to be used by the phong lighting 
 	// we also set a scalar value for the diffuse colour 
-	std::shared_ptr<Material> cubeMaterial;
-	cubeMaterial = std::make_shared<Material>(phongShader, "u_model");
-	cubeMaterial->setValue("u_albedo", glm::vec3(1.0f));
-	// atttach the diffuse map we created for the cube after extracting the diffuse texture path from its texture paths 
-	cubeMaterial->setValue("u_albedoMap", cubeTextureDiffuse);
+	//std::shared_ptr<Material> cubeMaterial;
+	//cubeMaterial = std::make_shared<Material>(phongShader, "u_model");
+	//cubeMaterial->setValue("u_albedo", glm::vec3(1.0f));
+	//// atttach the diffuse map we created for the cube after extracting the diffuse texture path from its texture paths 
+	//cubeMaterial->setValue("u_albedoMap", cubeTextureDiffuse);
 
-	// Actor represents an object
-	Actor cube;
-	// set the cube geomtry to be the  defined VAO that has the vbo for the vertex data of the cube bound to it 
-	cube.geometry = cubeVAO;
-	// set the material of the cube to be the one defined above that is using the phong lighting shader and the texture that we extracted from the cubes model data and loaded (using the texture path)
-	//cube.material = cubeMaterial;
-	//  define model matrix for cube 
-	cube.translation = glm::vec3(0.f, -1.f, -6.f);
-	cube.rotation = glm::quat(glm::vec3(0.0f, 0.4f, 0.0f));
-	cube.recalc();
+	//// Actor represents an object
+	//Actor cube;
+	//// set the cube geomtry to be the  defined VAO that has the vbo for the vertex data of the cube bound to it 
+	//cube.geometry = cubeVAO;
+	//// set the material of the cube to be the one defined above that is using the phong lighting shader and the texture that we extracted from the cubes model data and loaded (using the texture path)
+	////cube.material = cubeMaterial;
+	////  define model matrix for cube 
+	//cube.translation = glm::vec3(0.f, -1.f, -6.f);
+	//cube.rotation = glm::quat(glm::vec3(0.0f, 0.4f, 0.0f));
+	//cube.recalc();
 	/*m_scene->m_actors.push_back(cube);*/
 
 	VBOLayout modelLayout = {
@@ -136,7 +140,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	std::shared_ptr<Material> ModelMaterial =  std::make_shared<Material>(phongShader);
 
-	ModelMaterial->setValue("u_albedo", glm::vec3(1.0f)); 
+	//ModelMaterial->setValue("u_albedo", glm::vec3(1.0f)); 
 	ModelMaterial->setValue("u_albedoMap", modelDiffuseTexture);
 	ModelMaterial->setValue("u_specularMap", modelSpecularTexture);
 	ModelMaterial->setValue("u_normalMap", modelNormalTexture);
@@ -184,9 +188,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	dl.direction = glm::normalize(glm::vec3(1.f, -2.5f, -2.f));
 	m_scene->m_directionalLights.push_back(dl);
 
-
-	
-
 	addPointLights(PointLightNum);
 
 	// add a camera to the scene 
@@ -201,7 +202,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 		{AttachmentType::ColourHDR, true, true},
 	    {AttachmentType::Depth, false, false}
 
-	};
+	}; 
+
+	
 
 	m_screenWidth = m_winRef.getWidthf(); 
 	m_screenHeight = m_winRef.getHeightf();
@@ -221,7 +224,44 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<VAO> ScreenQuadVAO = std::make_shared<VAO>(screenIndices);
 
 	ScreenQuadVAO->addVertexBuffer(screenVertices, screenQuadLayout);
+	// defining post processing shader
+	ShaderDescription shaderPostProcessDesc;
+	shaderPostProcessDesc.type = ShaderType::rasterization;
+	shaderPostProcessDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
+	shaderPostProcessDesc.fragmentSrcPath = "./assets/shaders/PostProcessingPassFrag.glsl";
 
+	std::shared_ptr<Shader> PostProcessShader = std::make_shared<Shader>(shaderPostProcessDesc);
+
+
+	std::shared_ptr<Material> PostProcessMat = std::make_shared<Material>(PostProcessShader,"u_model");
+
+	Actor screenProcessQuadActor; 
+	screenProcessQuadActor.geometry = ScreenQuadVAO; 
+	//screenProcessQuadActor.material = PostProcessMat;
+	m_postProcessQuadIdx = m_postProcessScene->m_actors.size();
+	m_postProcessScene->m_actors.push_back(screenProcessQuadActor);
+
+
+
+
+
+
+	// defninig gamma correction shader
+	ShaderDescription gammaAndToneMapDes; 
+	gammaAndToneMapDes.type = ShaderType::rasterization;
+	gammaAndToneMapDes.vertexSrcPath = "./assets/shaders/GammaCorrectionVert.glsl";
+	gammaAndToneMapDes.fragmentSrcPath = "./assets/shaders/GammaCorrectionFrag.glsl";
+
+	std::shared_ptr<Shader> gammaCorrectionShader = std::make_shared<Shader>(gammaAndToneMapDes);
+
+	std::shared_ptr<Material> gammaCorrectionMat = std::make_shared<Material>(gammaCorrectionShader,"u_model");
+	
+	Actor GammaCorrectionQuad;
+	GammaCorrectionQuad.geometry = ScreenQuadVAO;
+	GammaCorrectionQuad.material = gammaCorrectionMat;
+	m_finalResult->m_actors.push_back(GammaCorrectionQuad);
+	
+	
 
 	// initialise a particualr pass for the renderer to perfrom rendering is often sperated inot particualr passes 
 	// as certain operations need to be performed in particualr order 
@@ -231,9 +271,14 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	// extract all the neccessary information from all the actors we defined in the scene to be used by the shader pass(generally things that define 
 	// the look or surface of the actors like materials)
 	mainPass.parseScene();
-	mainPass.target = std::make_shared<FBO>();
+	//mainPass.target = std::make_shared<FBO>();
 	// in process of adding post processing
-	//mainPass.target = std::make_shared<FBO>(m_winRef.getSize(),TypicalLayout); // Default framebuffer
+	mainPass.target = std::make_shared<FBO>(m_winRef.getSize(),TypicalLayout); // Default framebuffer
+	
+	// main pass writes to the colour buffer which we extract from in the post processing pass 
+	// and this colour buffer we pass stores the outputs of all the fragement shaders in the colour buffer 
+	PostProcessMat->setValue("u_colourBufferTexture", mainPass.target->getTarget(0));
+
 	// define the projection matrix to be use 
 	mainPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f);
 	mainPass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
@@ -247,15 +292,200 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	mainPass.setCachedValue("b_lights", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
 	mainPass.setCachedValue("b_lights", "dLight.colour", m_scene->m_directionalLights.at(0).colour);
 	mainPass.setCachedValue("b_lights", "dLight.direction", m_scene->m_directionalLights.at(0).direction);
-	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(mainPass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(1.6f, 0.6f, 2.f), 0.5f);
-
-	addPointLightDataToPass(mainPass,PointLightNum);
-
-	
 	//// attaching the camera script to the actor 
-	//// add the render pass to be used by the renderer 
-	m_renderer.addRenderPass(mainPass); 
+	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(mainPass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(1.6f, 0.6f, 2.f), 0.5f);
+	// add main initial pass with all the actors we want the main lighting to impact
+	addPointLightDataToPass(mainPass,PointLightNum);
+	m_renderer.addRenderPass(mainPass);
+	//  colour inversion post process pass 
 	
+	ShaderDescription colourInverseShaderDesc; 
+	colourInverseShaderDesc.type = ShaderType::rasterization; 
+	colourInverseShaderDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
+	colourInverseShaderDesc.fragmentSrcPath = "./assets/shaders/colourInverseFrag.glsl";
+
+	std::shared_ptr<Shader> colourInverseShader = std::make_shared<Shader>(colourInverseShaderDesc);
+
+	m_invertColourMat = std::make_shared<Material>(colourInverseShader);
+	m_invertColourMat->setValue("u_colourBufferTexture", mainPass.target->getTarget(0));
+    
+	RenderPass colourInversionPass;
+	colourInversionPass.scene = m_postProcessScene; 
+	colourInversionPass.parseScene();
+	colourInversionPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	colourInversionPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	colourInversionPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	colourInversionPass.setCachedValue("b_camera2D", "u_view", colourInversionPass.camera.view);
+	colourInversionPass.setCachedValue("b_camera2D", "u_projection", colourInversionPass.camera.projection);
+	
+	colourInversionPass.prePassActions.emplace_back(
+	[postProcessScene = m_postProcessScene, postProcessQuadIdx = m_postProcessQuadIdx, invertColourMat = m_invertColourMat ]
+	{postProcessScene.get()->m_actors.at(postProcessQuadIdx).material = invertColourMat; });
+	
+	m_renderer.addRenderPass(colourInversionPass);
+
+	// relative luminance shader
+	ShaderDescription relativeLuminanceShaderDesc;
+	relativeLuminanceShaderDesc.type = ShaderType::rasterization;
+	relativeLuminanceShaderDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
+	relativeLuminanceShaderDesc.fragmentSrcPath = "./assets/shaders/relativeLuminanceFrag.glsl";
+
+	std::shared_ptr<Shader> relativeLuminanceShader = std::make_shared<Shader>(relativeLuminanceShaderDesc);
+
+	m_luminanceMat = std::make_shared<Material>(relativeLuminanceShader);
+	m_luminanceMat->setValue("u_colourBufferTexture", colourInversionPass.target->getTarget(0));
+	m_luminanceMat->setValue("u_tint", m_tintColour);
+
+
+	RenderPass relativeLuminancePass;
+	relativeLuminancePass.scene = m_postProcessScene;
+	relativeLuminancePass.parseScene();
+	relativeLuminancePass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	relativeLuminancePass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	relativeLuminancePass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	relativeLuminancePass.setCachedValue("b_camera2D", "u_view", relativeLuminancePass.camera.view);
+	relativeLuminancePass.setCachedValue("b_camera2D", "u_projection", relativeLuminancePass.camera.projection);
+
+	relativeLuminancePass.prePassActions.emplace_back(
+		[postProcessScene = m_postProcessScene, postProcessQuadIdx = m_postProcessQuadIdx, relLuminanceMat = m_luminanceMat]
+		{postProcessScene.get()->m_actors.at(postProcessQuadIdx).material = relLuminanceMat; });
+
+	// add reltaive luminance pass to renderer
+	m_renderer.addRenderPass(relativeLuminancePass);
+
+
+
+	// initialse quad for blur post processing 
+	ShaderDescription blurShaderDesc;
+	blurShaderDesc.type = ShaderType::rasterization;
+	blurShaderDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
+	blurShaderDesc.fragmentSrcPath = "./assets/shaders/blurFrag.glsl";
+
+
+	std::shared_ptr<Shader> blurShader = std::make_shared<Shader>(blurShaderDesc);
+	m_blurMat = std::make_shared<Material>(blurShader);
+
+
+	m_blurMat->setValue("u_colourBufferTexture", relativeLuminancePass.target->getTarget(0));
+	m_blurMat->setValue("u_blurRadius", m_blurRadius);
+	m_blurMat->setValue("u_imageSize", m_winRef.getSizef());
+	Actor blurQuad;
+	blurQuad.geometry = ScreenQuadVAO;
+	blurQuad.material = m_blurMat;
+	m_blurScene->m_actors.push_back(blurQuad);
+
+	// pass for blur 
+	RenderPass blurPass;
+
+	blurPass.scene = m_blurScene;
+	blurPass.parseScene();
+	blurPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	blurPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	blurPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	blurPass.setCachedValue("b_camera2D", "u_view", blurPass.camera.view);
+	blurPass.setCachedValue("b_camera2D", "u_projection", blurPass.camera.projection);
+
+	m_renderer.addRenderPass(blurPass);
+
+	
+
+
+
+	// initialse quad for luminance contrast post processing 
+	ShaderDescription luminanceContrastShaderDesc;
+	luminanceContrastShaderDesc.type = ShaderType::rasterization;
+	luminanceContrastShaderDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
+	luminanceContrastShaderDesc.fragmentSrcPath = "./assets/shaders/luminanceContrastFrag.glsl";
+
+
+	std::shared_ptr<Shader> luminanceContrastShader = std::make_shared<Shader>(luminanceContrastShaderDesc);
+	m_luminanceContrastMat = std::make_shared<Material>(luminanceContrastShader);
+	Actor luminanceContrastQuad;
+	luminanceContrastQuad.geometry = ScreenQuadVAO;
+	luminanceContrastQuad.material = m_luminanceContrastMat;
+	m_contrastScreenScene->m_actors.push_back(luminanceContrastQuad);
+
+	m_luminanceContrastMat->setValue("u_colourBufferTexture", blurPass.target->getTarget(0));
+	m_luminanceContrastMat->setValue("u_contrast", m_LuminanceContrastScalar);
+	// pass for contrast using luminance
+	RenderPass luminanceContrastPass;
+
+	luminanceContrastPass.scene = m_contrastScreenScene;
+	luminanceContrastPass.parseScene();
+	luminanceContrastPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	luminanceContrastPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	luminanceContrastPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	luminanceContrastPass.setCachedValue("b_camera2D", "u_view", luminanceContrastPass.camera.view);
+	luminanceContrastPass.setCachedValue("b_camera2D", "u_projection", luminanceContrastPass.camera.projection);
+
+	m_renderer.addRenderPass(luminanceContrastPass);
+
+
+	// initialse quad for luminance saturation post processing 
+	ShaderDescription luminanceSaturationShaderDesc;
+	luminanceSaturationShaderDesc.type = ShaderType::rasterization;
+	luminanceSaturationShaderDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
+	luminanceSaturationShaderDesc.fragmentSrcPath = "./assets/shaders/luminanceSaturationFrag.glsl";
+
+
+	std::shared_ptr<Shader> luminanceSaturationShader = std::make_shared<Shader>(luminanceSaturationShaderDesc);
+	m_luminanceSaturationMat = std::make_shared<Material>(luminanceSaturationShader);
+	Actor luminanceSaturationQuad;
+	luminanceSaturationQuad.geometry = ScreenQuadVAO;
+	luminanceSaturationQuad.material = m_luminanceSaturationMat;
+	m_saturationScreenScene->m_actors.push_back(luminanceSaturationQuad);
+
+	m_luminanceSaturationMat->setValue("u_colourBufferTexture", luminanceContrastPass.target->getTarget(0));
+	m_luminanceSaturationMat->setValue("u_saturation", m_LuminanceSaturationScalar);
+	// pass for saturation using luminance
+	RenderPass luminanceSaturationPass; 
+	
+	luminanceSaturationPass.scene = m_saturationScreenScene;
+	luminanceSaturationPass.parseScene();
+	luminanceSaturationPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	luminanceSaturationPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	luminanceSaturationPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	luminanceSaturationPass.setCachedValue("b_camera2D", "u_view", luminanceSaturationPass.camera.view);
+	luminanceSaturationPass.setCachedValue("b_camera2D", "u_projection", luminanceSaturationPass.camera.projection);
+
+	m_renderer.addRenderPass(luminanceSaturationPass);
+
+
+	// gamma correction
+	RenderPass GammaCorrectionPass; 
+	GammaCorrectionPass.scene = m_finalResult; 
+	GammaCorrectionPass.parseScene();
+	GammaCorrectionPass.target = std::make_shared<FBO>(); 
+	GammaCorrectionPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	GammaCorrectionPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() }; 
+
+	GammaCorrectionPass.setCachedValue("b_camera2D", "u_view", GammaCorrectionPass.camera.view);
+	GammaCorrectionPass.setCachedValue("b_camera2D", "u_projection", GammaCorrectionPass.camera.projection);
+    
+	gammaCorrectionMat->setValue("u_colourBufferTexture", luminanceSaturationPass.target->getTarget(0));
+	//// add the gamma correction pass to be used by the renderer 
+	m_renderer.addRenderPass(GammaCorrectionPass);
+	std::printf("main layer constructor called \n"); 
+
+
+	m_PostProcessingNames = {
+		"ColourInversionPostPass",
+		"RelativeLuminanceTintPass",
+		"blur",
+		"RelativeLuminanceContrastPass",
+		"RelativeLuminanceSaturationPass",
+	};
+
+	m_postProcessingMaterials = {
+		m_invertColourMat,
+		m_luminanceMat,
+		m_blurMat,
+		m_luminanceContrastMat,
+		m_luminanceSaturationMat,
+	};
+
+	SetUpPostProcessingFlags();
+
 }
 
 
@@ -291,8 +521,12 @@ void MainLayer::onUpdate(float timestep)
 
 void MainLayer::onImGUIRender()
 {
+
+
+
+
 	// the entire ui is defined within a single frame 
-	ImGui::Begin("Demo");
+  ImGui::Begin("Demo");
 	// here we create a check box within the frame making it render for this particualr frame and checking that it has been 
 	//created giving it a name  also passing it the boolean for whether or not the option within the check box is defined 
 	if (ImGui::Checkbox("Wireframe ", &m_wireFrame)) {
@@ -310,18 +544,92 @@ void MainLayer::onImGUIRender()
 		}
 	} 
 	// creating a colour pciker that manipluates the base colour of the floor object/actor in the scene
-	if (ImGui::ColorPicker3("FloorColour", &floorColour.x)) {
+	if (ImGui::ColorPicker3("FloorColour", &m_floorColour.x)) {
 
 	   
 		Actor floor = m_scene->m_actors.at(m_FloorIdx); 
-		floor.material->setValue("u_albedo", floorColour);
+		floor.material->setValue("u_albedo", m_floorColour);
+
+	}
+	// end the frame
+  ImGui::End();
+  
+  ImGui::Begin("Before Post Process And Gamma/Tone");
+	GLuint textureId = m_renderer.getRenderPass(0).target->getTarget(0)->getID();
+	// deifne size for imgui image
+	ImVec2 imageSize = ImVec2(512, 512);
+	// deifne uvs for the image
+	ImVec2 UvTop = ImVec2(0.0f, 1.0f);
+	ImVec2 UvBottom = ImVec2(1.0f, 0.0f);
+	ImGui::Image((void*)(intptr_t)textureId, imageSize, UvTop, UvBottom);
+
+  ImGui::End();
+
+
+
+
+  ImGui::SetNextWindowSize({ 512,100 });
+
+  ImGui::Begin("PostProcessingFlags");
+	
+	 for (int i = 0; i < m_postProcessingFlags.size();i++) {
+		const char* name = m_PostProcessingNames[size_t(i)].c_str();
+		//std::printf("itteration of flags %d  \n", i);
+		if (ImGui::Checkbox(name, (bool*)(m_postProcessingFlags.data() + i))) {
+
+		    
+			m_postProcessingMaterials[i]->setValue("u_active", m_postProcessingFlags[i]);
+
+
+		}
+		
+
+
+	 }
+
+  ImGui::End();
+
+
+
+
+
+  ImGui::SetNextWindowSize({ 512,512 });
+
+  ImGui::Begin("PostProcessingProperties");
+
+	if (ImGui::ColorPicker3("Tint for luminance pass", &m_tintColour.x)) {
+
+		m_luminanceMat->setValue("u_tint", m_tintColour);
+
+
+	 }
+	
+	if (ImGui::SliderFloat("Luminance Saturation", &m_LuminanceSaturationScalar, 0.0f, 1.0f)) {
+
+		m_luminanceSaturationMat->setValue("u_saturation", m_LuminanceSaturationScalar);
+
+
+	} 
+
+	if (ImGui::SliderFloat("Luminance Contrast", &m_LuminanceContrastScalar, 0.0f, 3.0f)) {
+
+		m_luminanceContrastMat->setValue("u_contrast", m_LuminanceContrastScalar);
+
 
 	}
 
+	if (ImGui::SliderInt("Blur Radius", &m_blurRadius, 1, 10)) {
 
-	// end the frame
-	ImGui::End();
+		m_blurMat->setValue("u_blurRadius", m_blurRadius);
+
+
+	}
+
 	
+  ImGui::End();
+
+
+
 }
 
 
@@ -398,6 +706,22 @@ void MainLayer::addPointLightDataToPass(RenderPass& pass, int PointLightNum)
 
 	}
 
+
+
+}
+
+void MainLayer::SetUpPostProcessingFlags()
+{
+
+
+	
+
+	for (int i = 0; i < m_postProcessingMaterials.size(); i++) {
+
+		m_postProcessingFlags.emplace_back(0);
+		
+		m_postProcessingMaterials[i]->setValue("u_active", 0);
+	}
 
 
 }

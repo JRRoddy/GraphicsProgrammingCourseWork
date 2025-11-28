@@ -14,10 +14,7 @@ layout (std140, binding = 2) uniform b_camera2D
 };
 
 
-
 uniform mat4 u_model;
-
-void aces();
 
 void main()
 { 
@@ -28,8 +25,3 @@ void main()
     
 
 }
-
-
-
-
-
