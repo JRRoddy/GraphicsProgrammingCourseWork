@@ -600,7 +600,6 @@ void MainLayer::onImGUIRender()
 
 
 
-  ImGui::SetNextWindowSize({ 512,100 });
 
   ImGui::Begin("PostProcessingFlags");
 	
