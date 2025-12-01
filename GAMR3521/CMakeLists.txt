@@ -19,6 +19,7 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/luminanceSaturationFrag.glsl"
         "assets/shaders/luminanceContrastFrag.glsl"
         "assets/shaders/blurFrag.glsl"
+        "assets/shaders/edgeDetectionFrag.glsl"
 
         
 )

@@ -9,6 +9,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_scene.reset(new Scene);
 	m_postProcessScene.reset(new Scene); 
 	m_blurScene.reset(new Scene);
+	m_edgeDetectionScreenScene.reset(new Scene);
 	m_contrastScreenScene.reset(new Scene);
 	m_saturationScreenScene.reset(new Scene);
 	m_finalResult.reset(new Scene);
@@ -389,6 +390,36 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	
 
+	// initialse quad for edge detection post processing 
+	ShaderDescription edgeDetectionShaderDesc;
+	edgeDetectionShaderDesc.type = ShaderType::rasterization;
+	edgeDetectionShaderDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
+	edgeDetectionShaderDesc.fragmentSrcPath = "./assets/shaders/edgeDetectionFrag.glsl";
+
+
+	std::shared_ptr<Shader> edgeDetectionShader = std::make_shared<Shader>(edgeDetectionShaderDesc);
+	m_edgeDetectionMat = std::make_shared<Material>(edgeDetectionShader);
+
+
+	m_edgeDetectionMat->setValue("u_colourBufferTexture", blurPass.target->getTarget(0));
+	m_edgeDetectionMat->setValue("u_imageSize", m_winRef.getSizef());
+	Actor edgeDetectionQuad;
+	edgeDetectionQuad.geometry = ScreenQuadVAO;
+	edgeDetectionQuad.material = m_edgeDetectionMat;
+	m_edgeDetectionScreenScene->m_actors.push_back(edgeDetectionQuad);
+
+	// pass for edge detection
+	RenderPass edgeDetectionPass;
+
+	edgeDetectionPass.scene = m_edgeDetectionScreenScene;
+	edgeDetectionPass.parseScene();
+	edgeDetectionPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	edgeDetectionPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	edgeDetectionPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	edgeDetectionPass.setCachedValue("b_camera2D", "u_view", edgeDetectionPass.camera.view);
+	edgeDetectionPass.setCachedValue("b_camera2D", "u_projection", edgeDetectionPass.camera.projection);
+
+	m_renderer.addRenderPass(edgeDetectionPass);
 
 
 	// initialse quad for luminance contrast post processing 
@@ -405,7 +436,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	luminanceContrastQuad.material = m_luminanceContrastMat;
 	m_contrastScreenScene->m_actors.push_back(luminanceContrastQuad);
 
-	m_luminanceContrastMat->setValue("u_colourBufferTexture", blurPass.target->getTarget(0));
+	m_luminanceContrastMat->setValue("u_colourBufferTexture", edgeDetectionPass.target->getTarget(0));
 	m_luminanceContrastMat->setValue("u_contrast", m_LuminanceContrastScalar);
 	// pass for contrast using luminance
 	RenderPass luminanceContrastPass;
@@ -472,6 +503,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 		"ColourInversionPostPass",
 		"RelativeLuminanceTintPass",
 		"blur",
+		"edgeDetection",
 		"RelativeLuminanceContrastPass",
 		"RelativeLuminanceSaturationPass",
 	};
@@ -480,6 +512,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 		m_invertColourMat,
 		m_luminanceMat,
 		m_blurMat,
+		m_edgeDetectionMat,
 		m_luminanceContrastMat,
 		m_luminanceSaturationMat,
 	};
