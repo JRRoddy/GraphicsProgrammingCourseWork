@@ -13,7 +13,6 @@ uniform sampler2D u_colourBufferTexture;
 
 uniform int u_active;
 
-uniform vec2 u_imageSize;
 
 // convolution matrix for detecting horizontal edges
 mat3 xGradient = mat3 

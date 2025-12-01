@@ -402,7 +402,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 
 	m_edgeDetectionMat->setValue("u_colourBufferTexture", blurPass.target->getTarget(0));
-	m_edgeDetectionMat->setValue("u_imageSize", m_winRef.getSizef());
 	Actor edgeDetectionQuad;
 	edgeDetectionQuad.geometry = ScreenQuadVAO;
 	edgeDetectionQuad.material = m_edgeDetectionMat;
