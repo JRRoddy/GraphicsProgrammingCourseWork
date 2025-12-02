@@ -12,6 +12,11 @@ protected:
 	void onRender() const override;
 	void onUpdate(float timestep) override;
 	void onImGUIRender() override;
+	void createActors(int num,float coordRangeMin, float coordRangeMax, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat);
+	void createActors(int num, float coordRangeMin, float coordRangeMax, std::shared_ptr<VAO> Vao,std::shared_ptr<VAO> depthVAO, std::shared_ptr<Material> mat,std::shared_ptr<Material> depthMat);
+
+	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat , std::shared_ptr<VAO> depthVao, std::shared_ptr<Material> depthMat);
+
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat);
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, size_t & outId);
 
@@ -34,14 +39,17 @@ private:
 
 	std::shared_ptr<Scene> m_contrastScreenScene; 
 	std::shared_ptr<Scene> m_saturationScreenScene;
+	std::shared_ptr<Scene> m_visualiseDepthScreenScene;
+	std::shared_ptr<Scene> m_fogScreenScene;
 	std::shared_ptr<Scene> m_finalResult; 
 
 	Renderer m_renderer;			// Renderer to draw the scene
 	size_t m_cameraIdx;				// Actor index of the camera, used to update scene
 	size_t m_FloorIdx;              // Actor id to keep track of the floor within the actor buffer of the scene
 	size_t m_skyBoxIdx;
-
-
+	size_t m_linDepthPassIdx;
+	size_t m_mainPassIdx;
+	size_t m_zPrePasIdx;
 
 	//post processing materials
 	std::shared_ptr<Material> m_invertColourMat; 
@@ -50,6 +58,8 @@ private:
 	std::shared_ptr<Material> m_edgeDetectionMat;
 	std::shared_ptr<Material> m_luminanceSaturationMat; 
 	std::shared_ptr<Material> m_luminanceContrastMat;
+	std::shared_ptr<Material> m_visualiseDepthMat; 
+	std::shared_ptr<Material> m_fogMat;
 
 
 	std::vector<std::shared_ptr<Material>> m_postProcessingMaterials;
@@ -61,13 +71,18 @@ private:
 	std::vector<uint32_t> screenIndices;
 	int m_postProcessQuadIdx; 
 
+	float m_farClippingPlane = 1000.0f;
+	float m_nearClippingPlane = 0.1f;
+	float m_fogFar = 10.0f;
 	//Gui
 	bool m_wireFrame{ false }; // render in wireframe 
 	glm::vec3 m_floorColour = { 0.35f,0.0f,0.0f };// floor colour manipulated by a colour wheel define using ImGui 
 	glm::vec3 m_tintColour = {1.0f,1.0f,1.0f};
+	glm::vec3 m_fogColour = { 1.0f,1.0f,1.0f };
 	float m_LuminanceSaturationScalar = 0.0f;// used in the stauration shader to define the distacne from the grey scale colour formed by calcualting the lumiance and usingit is a grey scale vec3 
 	float m_LuminanceContrastScalar = 1.5f; // used to represent distance from grey in brightness(how exposed colours are)
 	int m_blurRadius = 2;
+
 	int PointLightNum = 7;
 
 	std::array<const char*, 6> cubeMapPaths = {

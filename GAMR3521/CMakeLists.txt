@@ -20,7 +20,12 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/luminanceContrastFrag.glsl"
         "assets/shaders/blurFrag.glsl"
         "assets/shaders/edgeDetectionFrag.glsl"
-
+        "assets/shaders/visualiseDepthVert.glsl"
+        "assets/shaders/visualiseDepthFrag.glsl"
+        "assets/shaders/fogFrag.glsl"
+        "assets/shaders/ZPrePassVert.glsl"
+        "assets/shaders/ZPrePassFrag.glsl"
+  
         
 )
 

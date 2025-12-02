@@ -7,6 +7,7 @@ in vec4 fragmentPosLightSpace;
 in vec3 fragmentPos;
 in vec2 texCoord;
 in mat3 tangentToWorld;
+in vec4 clipSpaceCoords;
 struct directionalLight
 {
 	vec3 colour;
@@ -32,6 +33,10 @@ struct spotLight
 
 const int numPointLights = 7;
 const int numSpotLights = 1;
+
+
+uniform sampler2D u_prePassDepthTexture;
+
 
 layout (std140, binding = 1) uniform b_lights
 {
@@ -60,10 +65,13 @@ vec3 getSpotLight(int idx) ;
 float specularStrength = vec3(texture(u_specularMap,texCoord)).r;
 vec3 normalFromMap = texture(u_normalMap, texCoord).rgb;
 vec3 normal = normalize(tangentToWorld * (normalFromMap * 2.0 - 1.0));
+
+bool hasPassedDepthTest();
+
 void main()
 {
 
-       
+    if(hasPassedDepthTest() == false) return;
 
 	vec3 result = vec3(0.0, 0.0, 0.0); 
 	
@@ -151,3 +159,26 @@ vec3 getSpotLight(int idx)
 
 
 
+bool hasPassedDepthTest()
+{
+
+  // manual perspective divide to normalize the z value we will use 
+  // as our depth value
+  float fragClipSpaceZ = clipSpaceCoords.z / clipSpaceCoords.w;
+
+  // convert to 0-1 range as depth buffer values are in range 0-1
+  float fragClipSpaceNormalisedZ = fragClipSpaceZ * 0.5 + 0.5;
+  
+  // we then get texture coordinates by extracting the x and y from our clip space 
+  // frag coord and performing a manul perspective divide to convert them to ndc  
+  // then mapping them to 0-1 range so they can be used as coordinates to sample from our pre pass 
+  // depth texture to check if the depth value we have in the clip space frag coord will pass the depth test
+  vec2 TCForExtractingDepthValue = (clipSpaceCoords.xy / clipSpaceCoords.w) * 0.5 + 0.5; 
+
+  float extractedDepthValue = texture(u_prePassDepthTexture,TCForExtractingDepthValue).r;
+  float bias = 0.001;
+  if(fragClipSpaceNormalisedZ >= extractedDepthValue + bias) return false;
+
+  return true;
+
+}

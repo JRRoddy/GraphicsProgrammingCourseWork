@@ -12,7 +12,21 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_edgeDetectionScreenScene.reset(new Scene);
 	m_contrastScreenScene.reset(new Scene);
 	m_saturationScreenScene.reset(new Scene);
+	m_visualiseDepthScreenScene.reset(new Scene);
+	m_fogScreenScene.reset(new Scene);
 	m_finalResult.reset(new Scene);
+	
+	// creating zpre pass mat here so we can use it for all actors below 
+	ShaderDescription zPrePassDesc;
+	zPrePassDesc.type = ShaderType::rasterization;
+	zPrePassDesc.vertexSrcPath = "./assets/shaders/ZPrePassVert.glsl";
+	zPrePassDesc.fragmentSrcPath = "./assets/shaders/ZPrePassFrag.glsl";
+
+	std::shared_ptr<Shader> zPrePass = std::make_shared<Shader>(zPrePassDesc);
+
+	std::shared_ptr<Material> zPrePassMat = std::make_shared<Material>(zPrePass);
+
+	
 	// create a descriptor for a particualr shader we want to make deifning the type of shader(int this case rasterization shader that uses both a vertex and fragment shader ) 
 	
 	ShaderDescription phongShaderDesc;
@@ -47,6 +61,12 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	    {GL_FLOAT,2},
 	};
 
+
+	VBOLayout depthLayout{
+	{GL_FLOAT,3},
+	
+	};
+
 	// defining floor vertex data 
 	std::shared_ptr<VAO> FloorGridVAO; 
 
@@ -54,6 +74,10 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	FloorGridVAO->addVertexBuffer(floorGridVertecies, FloorLayout);
 	
+	std::shared_ptr<VAO> floorVaoDepth = std::make_shared<VAO>(FloorElementIndicies);
+	floorVaoDepth->addVertexBuffer(floorGridVertecies, depthLayout);
+
+
 	// creating floor texture
 	std::shared_ptr<Texture> FloorTexture;
 	FloorTexture = std::make_shared<Texture>("./assets/textures/floorTex.png");
@@ -69,6 +93,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	Actor FloorActor;
 	FloorActor.geometry = FloorGridVAO;
 	FloorActor.material = FloorMaterial;
+	FloorActor.depthGeometry = floorVaoDepth;
+	FloorActor.depthMaterial = zPrePassMat;
 	// define the translation 
 	FloorActor.translation = glm::vec3{ -50.0f,-5.0f,-50.0f };
 	FloorActor.recalc(); 
@@ -135,6 +161,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<VAO> ModelVAO = std::make_shared<VAO>(model.m_meshes[0].indices); 
 	ModelVAO->addVertexBuffer(model.m_meshes[0].vertices, modelLayout);
 
+	std::shared_ptr<VAO> modelVaoDepth = std::make_shared<VAO>(model.m_meshes[0].indices);
+	floorVaoDepth->addVertexBuffer(model.m_meshes[0].vertices, depthLayout);
+
 	std::shared_ptr<Texture> modelDiffuseTexture = std::make_shared<Texture>("./assets/models/Vampire/textures/diffuse.png");
 	std::shared_ptr<Texture> modelSpecularTexture = std::make_shared<Texture>("./assets/models/Vampire/textures/specular.png");
 	std::shared_ptr<Texture> modelNormalTexture = std::make_shared<Texture>("./assets/models/Vampire/textures/normal.png");
@@ -145,11 +174,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	ModelMaterial->setValue("u_albedoMap", modelDiffuseTexture);
 	ModelMaterial->setValue("u_specularMap", modelSpecularTexture);
 	ModelMaterial->setValue("u_normalMap", modelNormalTexture);
-
-
-
-	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO,ModelMaterial);
-
+	
+	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO,ModelMaterial,modelVaoDepth,zPrePassMat);
+	createActors(10, -10.0f, 10.0f, ModelVAO, modelVaoDepth,ModelMaterial,zPrePassMat);
 	//skybox 
 
 	// calculate the number of indidces required for the sky box data 
@@ -262,8 +289,33 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	GammaCorrectionQuad.material = gammaCorrectionMat;
 	m_finalResult->m_actors.push_back(GammaCorrectionQuad);
 	
-	
+	FBOLayout colAndDepthLayout = {
+	   {AttachmentType::ColourHDR, true, true},
+	   {AttachmentType::Depth, true, false}
+	};
+	FBOLayout depthLayoutFBO{
+	   {AttachmentType::Depth, true, false},
 
+	};
+
+
+	RenderPass depthZPrePass;
+	depthZPrePass.scene = m_scene;
+	depthZPrePass.parseScene();
+	depthZPrePass.target = std::make_shared<FBO>( m_winRef.getSize(), depthLayoutFBO);
+	depthZPrePass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
+	depthZPrePass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f);
+	depthZPrePass.camera.updateView(m_scene->m_actors.at(m_cameraIdx).transform);
+	depthZPrePass.setCachedValue("b_camera", "u_view", depthZPrePass.camera.view);
+	depthZPrePass.setCachedValue("b_camera", "u_projection", depthZPrePass.camera.projection);
+	depthZPrePass.setCachedValue("b_camera", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
+	m_zPrePasIdx = m_renderer.getPassCount();
+	m_renderer.addRenderPass(depthZPrePass);
+
+	ModelMaterial->setValue("u_prePassDepthTexture", depthZPrePass.target->getTarget(0));
+	FloorMaterial->setValue("u_prePassDepthTexture", depthZPrePass.target->getTarget(0));
+	
+	
 	// initialise a particualr pass for the renderer to perfrom rendering is often sperated inot particualr passes 
 	// as certain operations need to be performed in particualr order 
 	RenderPass mainPass;
@@ -274,7 +326,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	mainPass.parseScene();
 	//mainPass.target = std::make_shared<FBO>();
 	// in process of adding post processing
-	mainPass.target = std::make_shared<FBO>(m_winRef.getSize(),TypicalLayout); // Default framebuffer
+	mainPass.target = std::make_shared<FBO>(m_winRef.getSize(),colAndDepthLayout); // Default framebuffer
 	
 	// main pass writes to the colour buffer which we extract from in the post processing pass 
 	// and this colour buffer we pass stores the outputs of all the fragement shaders in the colour buffer 
@@ -297,6 +349,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(mainPass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(1.6f, 0.6f, 2.f), 0.5f);
 	// add main initial pass with all the actors we want the main lighting to impact
 	addPointLightDataToPass(mainPass,PointLightNum);
+	m_mainPassIdx = m_renderer.getPassCount();
 	m_renderer.addRenderPass(mainPass);
 	//  colour inversion post process pass 
 	
@@ -421,6 +474,37 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_renderer.addRenderPass(edgeDetectionPass);
 
 
+
+	ShaderDescription fogShaderDesc;
+	fogShaderDesc.type = ShaderType::rasterization;
+	fogShaderDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
+	fogShaderDesc.fragmentSrcPath = "./assets/shaders/fogFrag.glsl";
+
+	std::shared_ptr<Shader> fogShader = std::make_shared<Shader>(fogShaderDesc);
+	m_fogMat = std::make_shared<Material>(fogShader);
+	m_fogMat->setValue("u_colourBufferTexture", edgeDetectionPass.target->getTarget(0));
+	m_fogMat->setValue("u_depthTexture", mainPass.target->getTarget(1));
+	m_fogMat->setValue("u_fogColour", m_fogColour); 
+	m_fogMat->setValue("u_farClip", m_fogFar);
+	m_fogMat->setValue("u_nearClip", m_nearClippingPlane);
+	Actor fogQuad;
+	fogQuad.geometry = ScreenQuadVAO;
+	fogQuad.material = m_fogMat;
+
+	m_fogScreenScene->m_actors.push_back(fogQuad);
+
+	RenderPass fogPass;
+
+	fogPass.scene = m_fogScreenScene;
+	fogPass.parseScene();
+	fogPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	fogPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	fogPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	fogPass.setCachedValue("b_camera2D", "u_view", fogPass.camera.view);
+	fogPass.setCachedValue("b_camera2D", "u_projection", fogPass.camera.projection);
+
+	m_renderer.addRenderPass(fogPass);
+
 	// initialse quad for luminance contrast post processing 
 	ShaderDescription luminanceContrastShaderDesc;
 	luminanceContrastShaderDesc.type = ShaderType::rasterization;
@@ -435,7 +519,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	luminanceContrastQuad.material = m_luminanceContrastMat;
 	m_contrastScreenScene->m_actors.push_back(luminanceContrastQuad);
 
-	m_luminanceContrastMat->setValue("u_colourBufferTexture", edgeDetectionPass.target->getTarget(0));
+	m_luminanceContrastMat->setValue("u_colourBufferTexture", fogPass.target->getTarget(0));
 	m_luminanceContrastMat->setValue("u_contrast", m_LuminanceContrastScalar);
 	// pass for contrast using luminance
 	RenderPass luminanceContrastPass;
@@ -481,6 +565,43 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_renderer.addRenderPass(luminanceSaturationPass);
 
 
+	// setting up shader to visualise depth
+	ShaderDescription visualiseDepthShaderDesc;
+	visualiseDepthShaderDesc.type = ShaderType::rasterization;
+	visualiseDepthShaderDesc.vertexSrcPath = "./assets/shaders/visualiseDepthVert.glsl";
+	visualiseDepthShaderDesc.fragmentSrcPath = "./assets/shaders/visualiseDepthFrag.glsl";
+
+	std::shared_ptr<Shader> visualiseDepthShader = std::make_shared<Shader>(visualiseDepthShaderDesc); 
+
+	m_visualiseDepthMat = std::make_shared<Material>(visualiseDepthShader); 
+	m_visualiseDepthMat->setValue("u_depthBufferTexture", mainPass.target->getTarget(1));
+	m_visualiseDepthMat->setValue("u_nearClip", m_nearClippingPlane);
+	m_visualiseDepthMat->setValue("u_farClip",m_farClippingPlane);
+
+	Actor visualiseDepthQuad;
+	visualiseDepthQuad.geometry = ScreenQuadVAO;
+	visualiseDepthQuad.material = m_visualiseDepthMat;
+	m_visualiseDepthScreenScene->m_actors.push_back(visualiseDepthQuad);
+
+	// visualise depth pass
+	RenderPass visualiseDepthPass;
+
+	visualiseDepthPass.scene = m_visualiseDepthScreenScene;
+	visualiseDepthPass.parseScene();
+	visualiseDepthPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	visualiseDepthPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	visualiseDepthPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	visualiseDepthPass.setCachedValue("b_camera2D", "u_view", visualiseDepthPass.camera.view);
+	visualiseDepthPass.setCachedValue("b_camera2D", "u_projection", visualiseDepthPass.camera.projection);
+	m_linDepthPassIdx = m_renderer.getPassCount();
+	m_renderer.addRenderPass(visualiseDepthPass);
+
+
+
+
+
+	
+
 	// gamma correction
 	RenderPass GammaCorrectionPass; 
 	GammaCorrectionPass.scene = m_finalResult; 
@@ -503,8 +624,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 		"RelativeLuminanceTintPass",
 		"blur",
 		"edgeDetection",
+		"fog",
 		"RelativeLuminanceContrastPass",
-		"RelativeLuminanceSaturationPass",
+		"RelativeLuminanceSaturationPass", 
 	};
 
 	m_postProcessingMaterials = {
@@ -512,6 +634,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 		m_luminanceMat,
 		m_blurMat,
 		m_edgeDetectionMat,
+		m_fogMat,
 		m_luminanceContrastMat,
 		m_luminanceSaturationMat,
 	};
@@ -539,7 +662,14 @@ void MainLayer::onUpdate(float timestep)
 	// Update camera  and its position in UBO
 	auto& camera = m_scene->m_actors.at(m_cameraIdx);
 
-	auto& pass = m_renderer.getRenderPass(0);
+	RenderPass& zPrePass = m_renderer.getRenderPass(m_zPrePasIdx);
+	zPrePass.camera.updateView(camera.transform);
+
+	zPrePass.setCachedValue("b_camera", "u_view", zPrePass.camera.view);
+	zPrePass.setCachedValue("b_camera", "u_viewPos", camera.translation);
+
+
+	auto& pass = m_renderer.getRenderPass(m_mainPassIdx);
 
 	pass.camera.updateView(camera.transform);
 	pass.setCachedValue("b_camera", "u_view", pass.camera.view);
@@ -562,7 +692,7 @@ void MainLayer::onImGUIRender()
 	// here we create a check box within the frame making it render for this particualr frame and checking that it has been 
 	//created giving it a name  also passing it the boolean for whether or not the option within the check box is defined 
 	if (ImGui::Checkbox("Wireframe ", &m_wireFrame)) {
-		auto& mainPass = m_renderer.getRenderPass(0);
+		auto& mainPass = m_renderer.getRenderPass(m_mainPassIdx);
 		if (m_wireFrame) {
 			// prepass is before we apply the shader 
 			mainPass.prePassActions.clear();
@@ -587,7 +717,7 @@ void MainLayer::onImGUIRender()
   ImGui::End();
   
   ImGui::Begin("Before Post Process And Gamma/Tone");
-	GLuint textureId = m_renderer.getRenderPass(0).target->getTarget(0)->getID();
+	GLuint textureId = m_renderer.getRenderPass(m_mainPassIdx).target->getTarget(0)->getID();
 	// deifne size for imgui image
 	ImVec2 imageSize = ImVec2(512, 512);
 	// deifne uvs for the image
@@ -661,10 +791,74 @@ void MainLayer::onImGUIRender()
 
 
 
+  ImGui::Begin("linear depth visualisation"); 
+
+   GLuint linDepthTextureId = m_renderer.getRenderPass(m_linDepthPassIdx).target->getTarget(0)->getID();
+   // deifne size for imgui image
+   ImVec2 linDepthImageSize = ImVec2(512, 512);
+   // deifne uvs for the image
+
+   ImGui::Image((void*)(intptr_t)linDepthTextureId, linDepthImageSize, UvTop, UvBottom);
+
+
+  ImGui::End();
+
 }
 
 
+void MainLayer::createActors(int num ,float coordRangeMin, float coordRangeMax, std::shared_ptr< VAO> Vao, std::shared_ptr< Material> mat)
+{
 
+	for (int i = 0; i < num; i++) {
+		Actor Object;
+		Object.geometry = Vao;
+		Object.material = mat;
+
+		Object.translation = glm::vec3(Randomiser::uniformFloatBetween(coordRangeMin,coordRangeMax), -3.0f, Randomiser::uniformFloatBetween(coordRangeMin, coordRangeMax));
+
+		Object.recalc();
+		m_scene->m_actors.push_back(Object);
+	}
+	
+
+
+
+}
+
+void MainLayer::createActors(int num, float coordRangeMin, float coordRangeMax, std::shared_ptr<VAO> Vao, std::shared_ptr<VAO> depthVAO, std::shared_ptr<Material> mat, std::shared_ptr<Material> depthMat)
+{
+
+	for (int i = 0; i < num; i++) {
+		Actor Object;
+		Object.geometry = Vao;
+		Object.material = mat;
+		Object.depthGeometry = depthVAO;
+		Object.depthMaterial = depthMat;
+		Object.translation = glm::vec3(Randomiser::uniformFloatBetween(coordRangeMin, coordRangeMax), -3.0f, Randomiser::uniformFloatBetween(coordRangeMin, coordRangeMax));
+
+		Object.recalc();
+		m_scene->m_actors.push_back(Object);
+	}
+
+
+}
+
+void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, std::shared_ptr<VAO> depthVao, std::shared_ptr<Material> depthMat)
+{
+
+	Actor Object;
+	Object.geometry = Vao;
+	Object.material = mat;
+	Object.depthGeometry = depthVao;
+	Object.depthMaterial = depthMat;
+	Object.translation = initialPos;
+
+	Object.recalc();
+	m_scene->m_actors.push_back(Object);
+
+
+
+}
 
 void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr< VAO> Vao, std::shared_ptr< Material> mat)
 {

@@ -6,6 +6,8 @@ in vec4 fragmentPosLightSpace;
 in vec3 normal;
 in vec3 fragmentPos;
 in vec2 texCoord;
+in vec4 clipSpaceCoords;
+
 
 struct directionalLight
 {
@@ -47,6 +49,7 @@ layout (std140, binding = 0) uniform b_camera
 	uniform vec3 u_viewPos;
 };
 
+uniform sampler2D u_prePassDepthTexture;
 
 uniform vec3 u_albedo;
 uniform sampler2D u_albedoMap;
@@ -55,10 +58,16 @@ uniform sampler2D u_albedoMap;
 vec3 getDirectionalLight() ;
 vec3 getPointLight(int idx) ;
 vec3 getSpotLight(int idx) ;
-
+bool hasPassedDepthTest();
 
 void main()
 {
+    
+	// z pre pass implemented for floor shader 
+	// commented version is in phongFrag shader 
+	if(hasPassedDepthTest() == false) return;
+     
+
 	vec3 result = vec3(0.0, 0.0, 0.0); 
 	
 	result += getDirectionalLight();
@@ -144,4 +153,24 @@ vec3 getSpotLight(int idx)
 }
 
 
+bool hasPassedDepthTest()
+{
+  
+  float clipSpaceZ =  clipSpaceCoords.z / clipSpaceCoords.w;
+
+  float remapToDepthRange = clipSpaceZ * 0.5 + 0.5;
+
+
+  vec2 TCoordinatesForDepth = vec2(clipSpaceCoords.xy / clipSpaceCoords.w) * 0.5 + 0.5;
+
+  float depthCompareSample = texture(u_prePassDepthTexture,TCoordinatesForDepth).r;
+  float bias = 0.001;
+  if(remapToDepthRange >= depthCompareSample + bias) return false;
+
+  return true;
+
+
+
+
+}
 

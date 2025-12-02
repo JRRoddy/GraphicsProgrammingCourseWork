@@ -9,7 +9,7 @@ out vec3 fragmentPos;
 out vec3 normal;
 out vec2 texCoord; 
 out mat3 tangentToWorld;
-
+out vec4 clipSpaceCoords;
 layout (std140, binding = 0) uniform b_camera
 {
 	uniform mat4 u_view;
@@ -26,14 +26,17 @@ void main()
 	fragmentPos = vec3(u_model * vec4(a_vertexPosition, 1.0));
 	normal = normalize(mat3(transpose(inverse(u_model))) * a_vertexNormal); 
         
-        vec3 tangentWorld = (vec4(a_tangent,0.0f) * u_model).xyz; 
-        tangentWorld = normalize(tangentWorld - dot(tangentWorld,normal) * normal);
+    vec3 tangentWorld = (vec4(a_tangent,0.0f) * u_model).xyz; 
+    tangentWorld = normalize(tangentWorld - dot(tangentWorld,normal) * normal);
         
-        vec3 bitangent = cross(normal,tangentWorld); 
+    vec3 bitangent = cross(normal,tangentWorld); 
        
-        bitangent = normalize(bitangent); 
+    bitangent = normalize(bitangent); 
         
-        tangentToWorld = mat3(tangentWorld,bitangent,normal);
+    tangentToWorld = mat3(tangentWorld,bitangent,normal);
 	texCoord = a_texCoord;
-	gl_Position = u_projection * u_view * vec4(fragmentPos,1.0);
+
+
+    clipSpaceCoords = u_projection * u_view * vec4(fragmentPos,1.0);
+	gl_Position = clipSpaceCoords;
 }
