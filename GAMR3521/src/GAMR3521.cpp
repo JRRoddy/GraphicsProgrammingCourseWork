@@ -14,6 +14,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_saturationScreenScene.reset(new Scene);
 	m_visualiseDepthScreenScene.reset(new Scene);
 	m_fogScreenScene.reset(new Scene);
+	m_shadowPrePassScene.reset(new Scene);
+	m_shadowPrePassVisualScreenScene.reset(new Scene);
 	m_finalResult.reset(new Scene);
 	
 	// creating zpre pass mat here so we can use it for all actors below 
@@ -54,6 +56,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Grid> floorGrid = std::make_shared<Grid>(); 
 	std::vector<float>  floorGridVertecies = floorGrid->getVertices(); 
 	std::vector<unsigned int> FloorElementIndicies = floorGrid->getIndices(); 
+	std::vector<float>  floorGridPositions = floorGrid->getVertexPositions();
 
 	// defining layout for floor vertex data
 	VBOLayout FloorLayout{
@@ -75,7 +78,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	FloorGridVAO->addVertexBuffer(floorGridVertecies, FloorLayout);
 	
 	std::shared_ptr<VAO> floorVaoDepth = std::make_shared<VAO>(FloorElementIndicies);
-	floorVaoDepth->addVertexBuffer(floorGridVertecies, depthLayout);
+	floorVaoDepth->addVertexBuffer(floorGridPositions, depthLayout);
 
 
 	// creating floor texture
@@ -84,15 +87,14 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 
 	// defining floor material
-	std::shared_ptr<Material> FloorMaterial; 
-	FloorMaterial = std::make_shared<Material>(FloorShader, "u_model");
+	m_floorModelMaterial = std::make_shared<Material>(FloorShader, "u_model");
 
-	FloorMaterial->setValue("u_albedo", m_floorColour);
-	FloorMaterial->setValue("u_albedoMap", FloorTexture); 
+	m_floorModelMaterial->setValue("u_albedo", m_floorColour);
+	m_floorModelMaterial->setValue("u_albedoMap", FloorTexture); 
 	// initialsiing the floor actor using the previously defined data 
 	Actor FloorActor;
 	FloorActor.geometry = FloorGridVAO;
-	FloorActor.material = FloorMaterial;
+	FloorActor.material = m_floorModelMaterial;
 	FloorActor.depthGeometry = floorVaoDepth;
 	FloorActor.depthMaterial = zPrePassMat;
 	// define the translation 
@@ -162,21 +164,21 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	ModelVAO->addVertexBuffer(model.m_meshes[0].vertices, modelLayout);
 
 	std::shared_ptr<VAO> modelVaoDepth = std::make_shared<VAO>(model.m_meshes[0].indices);
-	floorVaoDepth->addVertexBuffer(model.m_meshes[0].vertices, depthLayout);
+	modelVaoDepth->addVertexBuffer(model.m_meshes[0].positions, depthLayout);
 
 	std::shared_ptr<Texture> modelDiffuseTexture = std::make_shared<Texture>("./assets/models/Vampire/textures/diffuse.png");
 	std::shared_ptr<Texture> modelSpecularTexture = std::make_shared<Texture>("./assets/models/Vampire/textures/specular.png");
 	std::shared_ptr<Texture> modelNormalTexture = std::make_shared<Texture>("./assets/models/Vampire/textures/normal.png");
 
-	std::shared_ptr<Material> ModelMaterial =  std::make_shared<Material>(phongShader);
+	m_phongModelMaterial =  std::make_shared<Material>(phongShader);
 
 	//ModelMaterial->setValue("u_albedo", glm::vec3(1.0f)); 
-	ModelMaterial->setValue("u_albedoMap", modelDiffuseTexture);
-	ModelMaterial->setValue("u_specularMap", modelSpecularTexture);
-	ModelMaterial->setValue("u_normalMap", modelNormalTexture);
+	m_phongModelMaterial->setValue("u_albedoMap", modelDiffuseTexture);
+	m_phongModelMaterial->setValue("u_specularMap", modelSpecularTexture);
+	m_phongModelMaterial->setValue("u_normalMap", modelNormalTexture);
 	
-	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO,ModelMaterial,modelVaoDepth,zPrePassMat);
-	createActors(10, -10.0f, 10.0f, ModelVAO, modelVaoDepth,ModelMaterial,zPrePassMat);
+	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO, m_phongModelMaterial,modelVaoDepth,zPrePassMat);
+	createActors(10, -10.0f, 10.0f, ModelVAO, modelVaoDepth, m_phongModelMaterial,zPrePassMat);
 	//skybox 
 
 	// calculate the number of indidces required for the sky box data 
@@ -211,9 +213,16 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	
 	createActor(glm::vec3(0.0f, 0.0f, 0.0f), skyBoxVao, skyBoxMat, m_skyBoxIdx);
 
+
+
+
 	// add  a directional light to the scene 
 	DirectionalLight dl;
-	dl.direction = glm::normalize(glm::vec3(1.f, -2.5f, -2.f));
+	dl.direction = glm::normalize(m_dirLightDirection); 
+	
+
+
+
 	m_scene->m_directionalLights.push_back(dl);
 
 	addPointLights(PointLightNum);
@@ -272,8 +281,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 
 
-
-
 	// defninig gamma correction shader
 	ShaderDescription gammaAndToneMapDes; 
 	gammaAndToneMapDes.type = ShaderType::rasterization;
@@ -295,8 +302,12 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	};
 	FBOLayout depthLayoutFBO{
 	   {AttachmentType::Depth, true, false},
-
+	   
 	};
+
+	
+
+
 
 
 	RenderPass depthZPrePass;
@@ -312,10 +323,72 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_zPrePasIdx = m_renderer.getPassCount();
 	m_renderer.addRenderPass(depthZPrePass);
 
-	ModelMaterial->setValue("u_prePassDepthTexture", depthZPrePass.target->getTarget(0));
-	FloorMaterial->setValue("u_prePassDepthTexture", depthZPrePass.target->getTarget(0));
+	m_phongModelMaterial->setValue("u_prePassDepthTexture", depthZPrePass.target->getTarget(0));
+	m_floorModelMaterial->setValue("u_prePassDepthTexture", depthZPrePass.target->getTarget(0));
 	
+	m_shadowMapVariables = shadowMapVars();
+
+	ShaderDescription shadowPrePassDesc;
+
+	shadowPrePassDesc.type = ShaderType::rasterization;
+	shadowPrePassDesc.vertexSrcPath = "./assets/shaders/shadowMapPrePassVert.glsl";
+	shadowPrePassDesc.fragmentSrcPath = "./assets/shaders/shadowMapPrePassFrag.glsl";
 	
+	std::shared_ptr<Shader> shadowPrePassShader = std::make_shared<Shader>(shadowPrePassDesc);
+
+	std::shared_ptr<Material> shadowPrePassMat = std::make_shared<Material>(shadowPrePassShader);
+
+	
+
+	glm::vec3 lightPosition = (m_shadowMapVariables.center - (m_dirLightDirection)) * m_shadowMapVariables.distanceAlongLightVec;
+	glm::mat4 lightSpaceView = glm::lookAt(lightPosition, m_shadowMapVariables.center, m_shadowMapVariables.up);
+
+
+	m_shadowPrePassScene->m_actors = std::vector<Actor>(m_scene->m_actors);
+	for (int i = 0; i < m_shadowPrePassScene->m_actors.size(); i++) {
+		if (i != m_FloorIdx) {
+			m_shadowPrePassScene->m_actors[i].depthMaterial = shadowPrePassMat;
+
+		}
+	}
+
+	
+
+	DepthPass shadowMapPrePass;
+
+	shadowMapPrePass.scene = m_shadowPrePassScene;
+	shadowMapPrePass.parseScene();
+	shadowMapPrePass.target = std::make_shared<FBO>(m_shadowMapSize, depthLayoutFBO);
+	
+	 
+	shadowMapPrePass.camera.view = lightSpaceView;
+	shadowMapPrePass.camera.projection = glm::ortho(
+		-m_shadowMapVariables.orthoSize,
+		m_shadowMapVariables.orthoSize,
+		-m_shadowMapVariables.orthoSize,
+		m_shadowMapVariables.orthoSize,
+		-m_shadowMapVariables.orthoSize / 5,
+		m_shadowMapVariables.orthoSize * 5);
+
+	shadowMapPrePass.viewPort = { 0, 0, 4096, 4096 };
+
+	shadowMapPrePass.setCachedValue("b_lightCamera", "u_view", shadowMapPrePass.camera.view);
+	shadowMapPrePass.setCachedValue("b_lightCamera", "u_projection", shadowMapPrePass.camera.projection);
+	m_shadowMapPrepassIdx = m_renderer.getPassCount();
+	m_renderer.addDepthPass(shadowMapPrePass);
+	
+	m_phongModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPrePass.camera.projection * shadowMapPrePass.camera.view);
+	m_floorModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPrePass.camera.projection * shadowMapPrePass.camera.view);
+	
+	m_phongModelMaterial->setValue("u_shadowMap", shadowMapPrePass.target->getTarget(0));
+	m_floorModelMaterial->setValue("u_shadowMap", shadowMapPrePass.target->getTarget(0));
+	
+	m_phongModelMaterial->setValue("u_shadowSampleRadius", m_shadowMapSampleRadi);
+	m_floorModelMaterial->setValue("u_shadowSampleRadius", m_shadowMapSampleRadi);
+	m_phongModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
+	m_floorModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
+
+
 	// initialise a particualr pass for the renderer to perfrom rendering is often sperated inot particualr passes 
 	// as certain operations need to be performed in particualr order 
 	RenderPass mainPass;
@@ -389,6 +462,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_luminanceMat = std::make_shared<Material>(relativeLuminanceShader);
 	m_luminanceMat->setValue("u_colourBufferTexture", colourInversionPass.target->getTarget(0));
 	m_luminanceMat->setValue("u_tint", m_tintColour);
+
+
 
 
 	RenderPass relativeLuminancePass;
@@ -595,13 +670,40 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	visualiseDepthPass.setCachedValue("b_camera2D", "u_projection", visualiseDepthPass.camera.projection);
 	m_linDepthPassIdx = m_renderer.getPassCount();
 	m_renderer.addRenderPass(visualiseDepthPass);
-
-
-
-
-
 	
 
+	ShaderDescription shadowMapOuputShaderDesc;
+	shadowMapOuputShaderDesc.type = ShaderType::rasterization;
+	shadowMapOuputShaderDesc.vertexSrcPath = "./assets/shaders/shadowMapVisualisationVert.glsl";
+	shadowMapOuputShaderDesc.fragmentSrcPath = "./assets/shaders/shadowMapVisualiseFrag.glsl";
+
+
+	std::shared_ptr<Shader> shadowMapVisualShader = std::make_shared<Shader>(shadowMapOuputShaderDesc);
+	std::shared_ptr<Material> shadowMapVisMat = std::make_shared<Material>(shadowMapVisualShader);
+
+	shadowMapVisMat->setValue("u_depthBufferTexture", shadowMapPrePass.target->getTarget(0));
+	shadowMapVisMat->setValue("u_nearClip", -(m_shadowMapVariables.orthoSize/2));
+	shadowMapVisMat->setValue("u_farClip", m_shadowMapVariables.orthoSize * 2.0f);
+
+	Actor visualiseShadowDepthQuad;
+	visualiseShadowDepthQuad.geometry = ScreenQuadVAO;
+	visualiseShadowDepthQuad.material = shadowMapVisMat ;
+	m_shadowPrePassVisualScreenScene->m_actors.push_back(visualiseShadowDepthQuad);
+
+	RenderPass visualiseShadowPreDepthPass;
+
+	visualiseShadowPreDepthPass.scene = m_shadowPrePassVisualScreenScene;
+	visualiseShadowPreDepthPass.parseScene();
+	visualiseShadowPreDepthPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	visualiseShadowPreDepthPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+
+	visualiseShadowPreDepthPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	visualiseShadowPreDepthPass.setCachedValue("b_shadowMapVisualisation", "u_view", visualiseShadowPreDepthPass.camera.view);
+	visualiseShadowPreDepthPass.setCachedValue("b_shadowMapVisualisation", "u_projection", visualiseShadowPreDepthPass.camera.projection);
+	
+	m_shadowMapVisualisationIdx = m_renderer.getPassCount();
+	m_renderer.addRenderPass(visualiseShadowPreDepthPass);
+	 
 	// gamma correction
 	RenderPass GammaCorrectionPass; 
 	GammaCorrectionPass.scene = m_finalResult; 
@@ -669,13 +771,28 @@ void MainLayer::onUpdate(float timestep)
 	zPrePass.setCachedValue("b_camera", "u_viewPos", camera.translation);
 
 
+	
+
+
+
 	auto& pass = m_renderer.getRenderPass(m_mainPassIdx);
 
 	pass.camera.updateView(camera.transform);
 	pass.setCachedValue("b_camera", "u_view", pass.camera.view);
 	pass.setCachedValue("b_camera", "u_viewPos", camera.translation); 
+	m_scene->m_directionalLights.at(0).direction = glm::normalize(m_dirLightDirection);
+	pass.setCachedValue("b_lights", "dLight.direction", m_scene->m_directionalLights.at(0).direction);
+
 	// ensure that skybox wont move with view matrix 
 	m_scene->m_actors.at(m_skyBoxIdx).material->setValue("u_skyBoxView", glm::mat4(glm::mat3(pass.camera.view)));
+
+	glm::vec3 newLightPos = (m_shadowMapVariables.center - m_dirLightDirection) * m_shadowMapVariables.distanceAlongLightVec;
+	glm::mat4 newLightSpaceMat = glm::lookAt(newLightPos, m_shadowMapVariables.center, m_shadowMapVariables.up);
+	DepthPass& shadowMapPass = m_renderer.getDepthPass(m_shadowMapPrepassIdx);
+	shadowMapPass.setCachedValue("b_lightCamera","u_view",newLightSpaceMat);
+
+	m_phongModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPass.camera.projection * newLightSpaceMat);
+	m_floorModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPass.camera.projection * newLightSpaceMat);
 
 
 
@@ -801,7 +918,41 @@ void MainLayer::onImGUIRender()
    ImGui::Image((void*)(intptr_t)linDepthTextureId, linDepthImageSize, UvTop, UvBottom);
 
 
+  ImGui::End(); 
+
+
+  ImGui::Begin("shadows");
+    
+  if (ImGui::BeginTabBar("shadow settings")) {
+	  if (ImGui::BeginTabItem("shadowMapVisual")) { 
+		  ImGui::SliderFloat3("light direction", &m_dirLightDirection.x, -1.0f, 1.0f);
+		  GLuint shadowDepthTextureId = m_renderer.getRenderPass(m_shadowMapVisualisationIdx).target->getTarget(0)->getID();
+		  ImGui::Image((void*)(intptr_t)shadowDepthTextureId, linDepthImageSize, UvTop, UvBottom);
+
+		  ImGui::EndTabItem();
+	  }
+
+	  if (ImGui::BeginTabItem("shadowProperties")) {
+
+
+		  if (ImGui::Checkbox("shadow anti aliasing", (bool*)&m_shadowAntiAliasingOn)) {
+
+			  m_phongModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
+			  m_floorModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
+
+		  }
+		  ImGui::EndTabItem();
+	  }
+
+	  ImGui::EndTabBar();
+  }
+  
+
+
+
   ImGui::End();
+
+
 
 }
 

@@ -25,7 +25,10 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/fogFrag.glsl"
         "assets/shaders/ZPrePassVert.glsl"
         "assets/shaders/ZPrePassFrag.glsl"
-  
+        "assets/shaders/shadowMapPrePassVert.glsl"
+        "assets/shaders/shadowMapPrePassFrag.glsl"
+        "assets/shaders/shadowMapVisualiseFrag.glsl"
+        "assets/shaders/shadowMapVisualisationVert.glsl"
         
 )
 

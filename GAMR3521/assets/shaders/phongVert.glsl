@@ -18,7 +18,7 @@ layout (std140, binding = 0) uniform b_camera
 };
 
 uniform mat4 u_model;
-
+uniform mat4 u_lightSpaceMatrix;
 void main()
 {
 
@@ -37,6 +37,8 @@ void main()
 	texCoord = a_texCoord;
 
 
+
+    fragmentPosLightSpace = u_lightSpaceMatrix * vec4(fragmentPos,1.0);
     clipSpaceCoords = u_projection * u_view * vec4(fragmentPos,1.0);
 	gl_Position = clipSpaceCoords;
 }

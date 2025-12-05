@@ -50,15 +50,20 @@ layout (std140, binding = 0) uniform b_camera
 };
 
 uniform sampler2D u_prePassDepthTexture;
-
+uniform sampler2D u_shadowMap;
+uniform int u_shadowSampleRadius;
+uniform vec2 u_shadowMapSize;
 uniform vec3 u_albedo;
 uniform sampler2D u_albedoMap;
+uniform int u_antiAliasingOn;
+
 
 // forward declare
 vec3 getDirectionalLight() ;
 vec3 getPointLight(int idx) ;
 vec3 getSpotLight(int idx) ;
 bool hasPassedDepthTest();
+float shadowContribution();
 
 void main()
 {
@@ -97,7 +102,8 @@ vec3 getDirectionalLight()
 	vec3 reflectDir = reflect(dLight.direction, normal);  
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64);
 	vec3 specular = specularStrength * spec * dLight.colour;      
-	return ambient + (diffuse + specular);
+	float shadowAmount =  shadowContribution();
+	return ambient + (1.0 - shadowAmount) *  (diffuse + specular);
 }
 
 vec3 getPointLight(int idx)
@@ -174,3 +180,75 @@ bool hasPassedDepthTest()
 
 }
 
+float shadowContribution()
+{
+  
+
+
+   vec3 lightSpacePerspectiveDivide = (fragmentPosLightSpace.xyz) / fragmentPosLightSpace.w;
+
+   float lightSpaceDepthRemap = lightSpacePerspectiveDivide.z * 0.5 + 0.5;
+
+   vec2 shadowMapDepthCoords = lightSpacePerspectiveDivide.xy * 0.5 + 0.5; 
+   // because we took the vertex coords through the light space transform
+   // i.e through the light space projection matrix and view matrix 
+   // we can use the ndc xy we get from the perspective divide to directly 
+   // calculate the texture coordinates to access the correct depth value 
+   // that we need to compare with
+   float actualLightSpaceDepth = texture(u_shadowMap,shadowMapDepthCoords).r;
+
+    // make sure regions outside the frustrum are not in shadow 
+   // also saves performance
+   if(lightSpaceDepthRemap > 1.0)
+   {
+     return 0.0;
+   }
+   // use a bias here to handle when a particualr edge is on the border of 
+   // a pixel in the shadow map helps prevent shadow acene by slightly increasing 
+   // the precision required to be in shadow 
+   float bias  = 0.015;
+
+   vec2 texelSize = 1.0 / textureSize(u_shadowMap,0);
+   float shadowCount = 0.0;
+   float total = 0.0;
+   for(int x = -u_shadowSampleRadius ; x <= u_shadowSampleRadius;x++)
+   {
+        
+    for(int y = -u_shadowSampleRadius ; y <= u_shadowSampleRadius;y++)
+    {
+          total += 1.0;
+		  vec2 textureOffsetCoords = shadowMapDepthCoords + vec2(x,y) * texelSize;
+          
+		  textureOffsetCoords = clamp(textureOffsetCoords,vec2(0.0),vec2(1.0));
+
+
+		  float shadowSampleDepth = texture(u_shadowMap,textureOffsetCoords).r;
+
+		  if(lightSpaceDepthRemap -  bias > shadowSampleDepth) shadowCount += 1.0;
+
+    }
+   
+   
+   }
+
+
+
+   float shadow = 0.0f;
+   // compare our calculated  lightspace depth from the main cameras
+   // perspective with the depth we got for the fragment when rendering 
+   // from the lights perspective and if the fragment was further away 
+   // in terms of depth when rendering from the main cameras perspective 
+   // than from the lights perspective then their was an object in the way 
+   // for the light when trying to reach the fragment within the main cameras 
+   // perspective so the depth value for the pixel rendered from the lights perspective 
+   // is smaller as it is closer due to their being an object in the way from the lights 
+   // perspective 
+   if(lightSpaceDepthRemap - bias > actualLightSpaceDepth  ) shadow = 1.0;
+    
+   float aliasingOn = float(u_antiAliasingOn);
+   float shadowContrib = (shadowCount / total) * aliasingOn + shadow * (1.0 - aliasingOn) ;
+   return shadowContrib;
+
+
+
+}

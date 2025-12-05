@@ -10,6 +10,9 @@ uniform sampler2D u_depthBufferTexture;
 uniform float u_nearClip; 
 uniform float u_farClip;
 
+
+
+
 float lineariseDepth(float depth);
 
 void main()
