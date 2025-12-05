@@ -986,7 +986,7 @@ void MainLayer::createActors(int num, float coordRangeMin, float coordRangeMax, 
 		Object.depthGeometry = depthVAO;
 		Object.depthMaterial = depthMat;
 		Object.translation = glm::vec3(Randomiser::uniformFloatBetween(coordRangeMin, coordRangeMax), -3.0f, Randomiser::uniformFloatBetween(coordRangeMin, coordRangeMax));
-
+		Object.scale = glm::vec3(5.0f, 5.0f, 5.0f);
 		Object.recalc();
 		m_scene->m_actors.push_back(Object);
 	}
@@ -1020,7 +1020,7 @@ void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr< VAO> Vao, std
 	Object.material = mat;
 
 	Object.translation = initialPos;
-
+	Object.scale = glm::vec3(5.0f, 5.0f, 5.0f);
 	Object.recalc();
 	m_scene->m_actors.push_back(Object);
 
@@ -1036,7 +1036,7 @@ void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std:
 	Object.material = mat;
 
 	Object.translation = initialPos;
-
+	Object.scale = glm::vec3(5.0f, 5.0f, 5.0f);
 	Object.recalc(); 
 	outId = m_scene->m_actors.size();
 	m_scene->m_actors.push_back(Object);
