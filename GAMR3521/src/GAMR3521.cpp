@@ -1003,7 +1003,7 @@ void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std:
 	Object.depthGeometry = depthVao;
 	Object.depthMaterial = depthMat;
 	Object.translation = initialPos;
-
+	Object.scale = glm::vec3(5.0f, 5.0f, 5.0f);
 	Object.recalc();
 	m_scene->m_actors.push_back(Object);
 
