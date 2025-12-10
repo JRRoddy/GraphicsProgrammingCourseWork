@@ -7,6 +7,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	// here this essentially refreshes the scene and assings a new refernce to the smart pointer holding the scene 
 	// the scene has buffers that hold all of the current data for the scene such as lighting and objects 
 	m_scene.reset(new Scene);
+	m_skyboxScene.reset(new Scene);
+	m_lightPassScene.reset(new Scene);
 	m_postProcessScene.reset(new Scene); 
 	m_blurScene.reset(new Scene);
 	m_edgeDetectionScreenScene.reset(new Scene);
@@ -19,14 +21,40 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_finalResult.reset(new Scene);
 	
 	// creating zpre pass mat here so we can use it for all actors below 
-	ShaderDescription zPrePassDesc;
-	zPrePassDesc.type = ShaderType::rasterization;
-	zPrePassDesc.vertexSrcPath = "./assets/shaders/ZPrePassVert.glsl";
-	zPrePassDesc.fragmentSrcPath = "./assets/shaders/ZPrePassFrag.glsl";
+	ShaderDescription deferredPassDesc;
+	deferredPassDesc.type = ShaderType::rasterization;
+	deferredPassDesc.vertexSrcPath = "./assets/shaders/deferredPrePassVert.glsl";
+	deferredPassDesc.fragmentSrcPath = "./assets/shaders/deferredPrePassFrag.glsl";
 
-	std::shared_ptr<Shader> zPrePass = std::make_shared<Shader>(zPrePassDesc);
+	std::shared_ptr<Shader> deferredPrePassShader = std::make_shared<Shader>(deferredPassDesc);
 
-	std::shared_ptr<Material> zPrePassMat = std::make_shared<Material>(zPrePass);
+	m_gPassMat = std::make_shared<Material>(deferredPrePassShader);
+
+	ShaderDescription deferredDiffuseOnlyPassDesc;
+	deferredDiffuseOnlyPassDesc.type = ShaderType::rasterization;
+	deferredDiffuseOnlyPassDesc.vertexSrcPath = "./assets/shaders/diffuseOnlyDRPassVert.glsl";
+	deferredDiffuseOnlyPassDesc.fragmentSrcPath = "./assets/shaders/diffuseOnlyDRPassFrag.glsl";
+
+	std::shared_ptr<Shader> deferredDiffuseOnlyPrePassShader = std::make_shared<Shader>(deferredDiffuseOnlyPassDesc);
+
+	m_gPassDiffuseOnly = std::make_shared<Material>(deferredDiffuseOnlyPrePassShader);
+
+	m_shadowMapVariables = shadowMapVars();
+	
+	ShaderDescription shadowPrePassDesc;
+
+	shadowPrePassDesc.type = ShaderType::rasterization;
+	shadowPrePassDesc.vertexSrcPath = "./assets/shaders/shadowMapPrePassVert.glsl";
+	shadowPrePassDesc.fragmentSrcPath = "./assets/shaders/shadowMapPrePassFrag.glsl";
+
+	std::shared_ptr<Shader> shadowPrePassShader = std::make_shared<Shader>(shadowPrePassDesc);
+
+	std::shared_ptr<Material> shadowPrePassMat = std::make_shared<Material>(shadowPrePassShader);
+
+
+
+	glm::vec3 lightPosition = (m_shadowMapVariables.center - (m_dirLightDirection)) * m_shadowMapVariables.distanceAlongLightVec;
+	glm::mat4 lightSpaceView = glm::lookAt(lightPosition, m_shadowMapVariables.center, m_shadowMapVariables.up);
 
 	
 	// create a descriptor for a particualr shader we want to make deifning the type of shader(int this case rasterization shader that uses both a vertex and fragment shader ) 
@@ -88,20 +116,21 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	// defining floor material
 	m_floorModelMaterial = std::make_shared<Material>(FloorShader, "u_model");
+	
+/*	m_floorModelMaterial->setValue("u_albedo", m_floorColour);
+	m_floorModelMaterial->setValue("u_albedoMap", FloorTexture);*/ 
 
-	m_floorModelMaterial->setValue("u_albedo", m_floorColour);
-	m_floorModelMaterial->setValue("u_albedoMap", FloorTexture); 
-	// initialsiing the floor actor using the previously defined data 
+	m_gPassDiffuseOnly->setValue("u_albedo", m_floorColour);
+	m_gPassDiffuseOnly->setValue("u_albedoMap", FloorTexture);	// initialsiing the floor actor using the previously defined data 
 	Actor FloorActor;
 	FloorActor.geometry = FloorGridVAO;
-	FloorActor.material = m_floorModelMaterial;
+	FloorActor.material = m_gPassDiffuseOnly;
 	FloorActor.depthGeometry = floorVaoDepth;
-	FloorActor.depthMaterial = zPrePassMat;
 	// define the translation 
 	FloorActor.translation = glm::vec3{ -50.0f,-5.0f,-50.0f };
 	FloorActor.recalc(); 
 	m_FloorIdx = m_scene->m_actors.size();
-	m_scene->m_actors.push_back(FloorActor);
+	m_scene->m_actors.push_back(FloorActor);                                                                    
 
 	// create the cube model 
 	Model cubeModel("./assets/models/whitecube/whitecube.obj");
@@ -173,12 +202,16 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_phongModelMaterial =  std::make_shared<Material>(phongShader);
 
 	//ModelMaterial->setValue("u_albedo", glm::vec3(1.0f)); 
-	m_phongModelMaterial->setValue("u_albedoMap", modelDiffuseTexture);
+	/*m_phongModelMaterial->setValue("u_albedoMap", modelDiffuseTexture);
 	m_phongModelMaterial->setValue("u_specularMap", modelSpecularTexture);
 	m_phongModelMaterial->setValue("u_normalMap", modelNormalTexture);
-	
-	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO, m_phongModelMaterial,modelVaoDepth,zPrePassMat);
-	createActors(10, -10.0f, 10.0f, ModelVAO, modelVaoDepth, m_phongModelMaterial,zPrePassMat);
+	*/
+	m_gPassMat->setValue("u_albedoMap", modelDiffuseTexture);
+	m_gPassMat->setValue("u_specularMap", modelSpecularTexture);
+	m_gPassMat->setValue("u_normalMap", modelNormalTexture);
+
+	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO, m_gPassMat,modelVaoDepth,shadowPrePassMat);
+	createActors(10, -10.0f, 10.0f, ModelVAO, modelVaoDepth, m_gPassMat,shadowPrePassMat);
 	//skybox 
 
 	// calculate the number of indidces required for the sky box data 
@@ -211,7 +244,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	skyBoxMat->setValue("u_cubeMap", skyBoxMap);
 	
-	createActor(glm::vec3(0.0f, 0.0f, 0.0f), skyBoxVao, skyBoxMat, m_skyBoxIdx);
+	createActor(glm::vec3(0.0f, 0.0f, 0.0f), skyBoxVao, skyBoxMat, m_skyBoxIdx,m_skyboxScene);
 
 
 
@@ -223,7 +256,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 
 
-	m_scene->m_directionalLights.push_back(dl);
+	m_lightPassScene->m_directionalLights.push_back(dl);
 
 	addPointLights(PointLightNum);
 
@@ -305,58 +338,48 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	   
 	};
 
+	FBOLayout g_BufferLayout
+	{
+		{AttachmentType::ColourHDR,true},
+		{AttachmentType::ColourHDR,true},
+		{AttachmentType::ColourHDR,true},
+		{AttachmentType::Depth,true},
+
+
+	};
 	
 
 
 
 
-	RenderPass depthZPrePass;
-	depthZPrePass.scene = m_scene;
-	depthZPrePass.parseScene();
-	depthZPrePass.target = std::make_shared<FBO>( m_winRef.getSize(), depthLayoutFBO);
-	depthZPrePass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
-	depthZPrePass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f);
-	depthZPrePass.camera.updateView(m_scene->m_actors.at(m_cameraIdx).transform);
-	depthZPrePass.setCachedValue("b_camera", "u_view", depthZPrePass.camera.view);
-	depthZPrePass.setCachedValue("b_camera", "u_projection", depthZPrePass.camera.projection);
-	depthZPrePass.setCachedValue("b_camera", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
-	m_zPrePasIdx = m_renderer.getPassCount();
-	m_renderer.addRenderPass(depthZPrePass);
-
-	m_phongModelMaterial->setValue("u_prePassDepthTexture", depthZPrePass.target->getTarget(0));
-	m_floorModelMaterial->setValue("u_prePassDepthTexture", depthZPrePass.target->getTarget(0));
-	
-	m_shadowMapVariables = shadowMapVars();
-
-	ShaderDescription shadowPrePassDesc;
-
-	shadowPrePassDesc.type = ShaderType::rasterization;
-	shadowPrePassDesc.vertexSrcPath = "./assets/shaders/shadowMapPrePassVert.glsl";
-	shadowPrePassDesc.fragmentSrcPath = "./assets/shaders/shadowMapPrePassFrag.glsl";
-	
-	std::shared_ptr<Shader> shadowPrePassShader = std::make_shared<Shader>(shadowPrePassDesc);
-
-	std::shared_ptr<Material> shadowPrePassMat = std::make_shared<Material>(shadowPrePassShader);
+	RenderPass deferredPrePass;
+	deferredPrePass.scene = m_scene;
+	deferredPrePass.parseScene();
+	deferredPrePass.target = std::make_shared<FBO>( m_winRef.getSize(), g_BufferLayout);
+	deferredPrePass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
+	deferredPrePass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f);
+	deferredPrePass.camera.updateView(m_scene->m_actors.at(m_cameraIdx).transform);
+	deferredPrePass.setCachedValue("b_camera", "u_view", deferredPrePass.camera.view);
+	deferredPrePass.setCachedValue("b_camera", "u_projection", deferredPrePass.camera.projection);
+	deferredPrePass.setCachedValue("b_camera", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
+	m_deferredPrePasIdx = m_renderer.getPassCount();
+	m_renderer.addRenderPass(deferredPrePass);
 
 	
 
-	glm::vec3 lightPosition = (m_shadowMapVariables.center - (m_dirLightDirection)) * m_shadowMapVariables.distanceAlongLightVec;
-	glm::mat4 lightSpaceView = glm::lookAt(lightPosition, m_shadowMapVariables.center, m_shadowMapVariables.up);
-
-
-	m_shadowPrePassScene->m_actors = std::vector<Actor>(m_scene->m_actors);
+	/*m_shadowPrePassScene->m_actors = std::vector<Actor>(m_scene->m_actors);
 	for (int i = 0; i < m_shadowPrePassScene->m_actors.size(); i++) {
 		if (i != m_FloorIdx) {
 			m_shadowPrePassScene->m_actors[i].depthMaterial = shadowPrePassMat;
 
 		}
-	}
+	}*/
 
 	
 
 	DepthPass shadowMapPrePass;
 
-	shadowMapPrePass.scene = m_shadowPrePassScene;
+	shadowMapPrePass.scene = m_scene;
 	shadowMapPrePass.parseScene();
 	shadowMapPrePass.target = std::make_shared<FBO>(m_shadowMapSize, depthLayoutFBO);
 	
@@ -377,9 +400,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_shadowMapPrepassIdx = m_renderer.getPassCount();
 	m_renderer.addDepthPass(shadowMapPrePass);
 	
-	m_phongModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPrePass.camera.projection * shadowMapPrePass.camera.view);
+	/*m_phongModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPrePass.camera.projection * shadowMapPrePass.camera.view);
 	m_floorModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPrePass.camera.projection * shadowMapPrePass.camera.view);
-	
+	*/
 	m_phongModelMaterial->setValue("u_shadowMap", shadowMapPrePass.target->getTarget(0));
 	m_floorModelMaterial->setValue("u_shadowMap", shadowMapPrePass.target->getTarget(0));
 	
@@ -389,11 +412,42 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_floorModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
 
 
+	RenderPass skyBoxPass;
+
+	skyBoxPass.scene = m_skyboxScene;
+	skyBoxPass.parseScene();
+	skyBoxPass.target = std::make_shared<FBO>(m_winRef.getSize(), colAndDepthLayout);
+	skyBoxPass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
+	skyBoxPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f);
+
+	skyBoxPass.setCachedValue("b_camera", "u_projection", skyBoxPass.camera.projection);
+   
+	skyBoxMat->setValue("u_skyBoxView", glm::mat(glm::mat3(deferredPrePass.camera.view)));
+	m_renderer.addRenderPass(skyBoxPass);
+
+
+
+
+	Actor lightPassQuad;
+	lightPassQuad.geometry = ScreenQuadVAO;
+	lightPassQuad.material = m_phongModelMaterial;
+	
+	m_lightPassScene->m_actors.push_back(lightPassQuad);
+
+	
+	m_phongModelMaterial->setValue("u_fragmentPositions", deferredPrePass.target->getTarget(0));
+	m_phongModelMaterial->setValue("u_normalMap", deferredPrePass.target->getTarget(1));
+	m_phongModelMaterial->setValue("u_diffSpecMap", deferredPrePass.target->getTarget(2));
+	m_phongModelMaterial->setValue("u_prePassDepthTexture", deferredPrePass.target->getTarget(3));
+	m_phongModelMaterial->setValue("u_skyBoxColBuffer", skyBoxPass.target->getTarget(0));
+	m_phongModelMaterial->setValue("u_nearClip", m_nearClippingPlane);
+	m_phongModelMaterial->setValue("u_farClip", m_farClippingPlane);
+
 	// initialise a particualr pass for the renderer to perfrom rendering is often sperated inot particualr passes 
 	// as certain operations need to be performed in particualr order 
 	RenderPass mainPass;
 	// assigng the scene for the pass to manipulate 
-	mainPass.scene = m_scene;
+	mainPass.scene = m_lightPassScene;
 	// extract all the neccessary information from all the actors we defined in the scene to be used by the shader pass(generally things that define 
 	// the look or surface of the actors like materials)
 	mainPass.parseScene();
@@ -406,20 +460,22 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	PostProcessMat->setValue("u_colourBufferTexture", mainPass.target->getTarget(0));
 
 	// define the projection matrix to be use 
-	mainPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f);
+	mainPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
 	mainPass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
+	mainPass.setCachedValue("b_lightPassCamera", "u_lightPassview", mainPass.camera.view);
+	mainPass.setCachedValue("b_lightPassCamera", "u_lightPassProjection", mainPass.camera.projection);
 
-	mainPass.camera.updateView(m_scene->m_actors.at(m_cameraIdx).transform);
 
-	mainPass.setCachedValue("b_camera", "u_view", mainPass.camera.view);
 
-	mainPass.setCachedValue("b_camera", "u_projection", mainPass.camera.projection);
+	mainPass.setCachedValue("b_camera", "u_view", deferredPrePass.camera.view);
+
+	mainPass.setCachedValue("b_camera", "u_projection", glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f));
 
 	mainPass.setCachedValue("b_lights", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
-	mainPass.setCachedValue("b_lights", "dLight.colour", m_scene->m_directionalLights.at(0).colour);
-	mainPass.setCachedValue("b_lights", "dLight.direction", m_scene->m_directionalLights.at(0).direction);
+	mainPass.setCachedValue("b_lights", "dLight.colour", m_lightPassScene->m_directionalLights.at(0).colour);
+	mainPass.setCachedValue("b_lights", "dLight.direction", m_lightPassScene->m_directionalLights.at(0).direction);
 	//// attaching the camera script to the actor 
-	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(mainPass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(1.6f, 0.6f, 2.f), 0.5f);
+	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(deferredPrePass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(1.6f, 0.6f, 2.f), 0.5f);
 	// add main initial pass with all the actors we want the main lighting to impact
 	addPointLightDataToPass(mainPass,PointLightNum);
 	m_mainPassIdx = m_renderer.getPassCount();
@@ -558,7 +614,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Shader> fogShader = std::make_shared<Shader>(fogShaderDesc);
 	m_fogMat = std::make_shared<Material>(fogShader);
 	m_fogMat->setValue("u_colourBufferTexture", edgeDetectionPass.target->getTarget(0));
-	m_fogMat->setValue("u_depthTexture", mainPass.target->getTarget(1));
+	m_fogMat->setValue("u_depthTexture", deferredPrePass.target->getTarget(3));
 	m_fogMat->setValue("u_fogColour", m_fogColour); 
 	m_fogMat->setValue("u_farClip", m_fogFar);
 	m_fogMat->setValue("u_nearClip", m_nearClippingPlane);
@@ -649,7 +705,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Shader> visualiseDepthShader = std::make_shared<Shader>(visualiseDepthShaderDesc); 
 
 	m_visualiseDepthMat = std::make_shared<Material>(visualiseDepthShader); 
-	m_visualiseDepthMat->setValue("u_depthBufferTexture", mainPass.target->getTarget(1));
+	m_visualiseDepthMat->setValue("u_depthBufferTexture", deferredPrePass.target->getTarget(3));
 	m_visualiseDepthMat->setValue("u_nearClip", m_nearClippingPlane);
 	m_visualiseDepthMat->setValue("u_farClip",m_farClippingPlane);
 
@@ -764,27 +820,23 @@ void MainLayer::onUpdate(float timestep)
 	// Update camera  and its position in UBO
 	auto& camera = m_scene->m_actors.at(m_cameraIdx);
 
-	RenderPass& zPrePass = m_renderer.getRenderPass(m_zPrePasIdx);
-	zPrePass.camera.updateView(camera.transform);
+	RenderPass& defferedPass = m_renderer.getRenderPass(m_deferredPrePasIdx);
 
-	zPrePass.setCachedValue("b_camera", "u_view", zPrePass.camera.view);
-	zPrePass.setCachedValue("b_camera", "u_viewPos", camera.translation);
-
-
-	
-
+	defferedPass.camera.updateView(camera.transform);
+	defferedPass.setCachedValue("b_camera", "u_view", defferedPass.camera.view);
+	defferedPass.setCachedValue("b_camera", "u_viewPos", camera.translation);
 
 
 	auto& pass = m_renderer.getRenderPass(m_mainPassIdx);
 
-	pass.camera.updateView(camera.transform);
-	pass.setCachedValue("b_camera", "u_view", pass.camera.view);
+	
+	pass.setCachedValue("b_camera", "u_view", defferedPass.camera.view);
 	pass.setCachedValue("b_camera", "u_viewPos", camera.translation); 
-	m_scene->m_directionalLights.at(0).direction = glm::normalize(m_dirLightDirection);
-	pass.setCachedValue("b_lights", "dLight.direction", m_scene->m_directionalLights.at(0).direction);
+	m_lightPassScene->m_directionalLights.at(0).direction = glm::normalize(m_dirLightDirection);
+	pass.setCachedValue("b_lights", "dLight.direction", m_lightPassScene->m_directionalLights.at(0).direction);
 
 	// ensure that skybox wont move with view matrix 
-	m_scene->m_actors.at(m_skyBoxIdx).material->setValue("u_skyBoxView", glm::mat4(glm::mat3(pass.camera.view)));
+	m_skyboxScene->m_actors.at(m_skyBoxIdx).material->setValue("u_skyBoxView", glm::mat4(glm::mat3(defferedPass.camera.view)));
 
 	glm::vec3 newLightPos = (m_shadowMapVariables.center - m_dirLightDirection) * m_shadowMapVariables.distanceAlongLightVec;
 	glm::mat4 newLightSpaceMat = glm::lookAt(newLightPos, m_shadowMapVariables.center, m_shadowMapVariables.up);
@@ -792,8 +844,7 @@ void MainLayer::onUpdate(float timestep)
 	shadowMapPass.setCachedValue("b_lightCamera","u_view",newLightSpaceMat);
 
 	m_phongModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPass.camera.projection * newLightSpaceMat);
-	m_floorModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPass.camera.projection * newLightSpaceMat);
-
+	
 
 
 }
@@ -827,7 +878,7 @@ void MainLayer::onImGUIRender()
 
 	   
 		Actor floor = m_scene->m_actors.at(m_FloorIdx); 
-		floor.material->setValue("u_albedo", m_floorColour);
+		m_gPassDiffuseOnly->setValue("u_albedo", m_floorColour);
 
 	}
 	// end the frame
@@ -908,18 +959,9 @@ void MainLayer::onImGUIRender()
 
 
 
-  ImGui::Begin("linear depth visualisation"); 
-
-   GLuint linDepthTextureId = m_renderer.getRenderPass(m_linDepthPassIdx).target->getTarget(0)->getID();
-   // deifne size for imgui image
-   ImVec2 linDepthImageSize = ImVec2(512, 512);
-   // deifne uvs for the image
-
-   ImGui::Image((void*)(intptr_t)linDepthTextureId, linDepthImageSize, UvTop, UvBottom);
 
 
-  ImGui::End(); 
-
+  ImVec2 ImageSize = ImVec2(512, 512);
 
   ImGui::Begin("shadows");
     
@@ -927,7 +969,7 @@ void MainLayer::onImGUIRender()
 	  if (ImGui::BeginTabItem("shadowMapVisual")) { 
 		  ImGui::SliderFloat3("light direction", &m_dirLightDirection.x, -1.0f, 1.0f);
 		  GLuint shadowDepthTextureId = m_renderer.getRenderPass(m_shadowMapVisualisationIdx).target->getTarget(0)->getID();
-		  ImGui::Image((void*)(intptr_t)shadowDepthTextureId, linDepthImageSize, UvTop, UvBottom);
+		  ImGui::Image((void*)(intptr_t)shadowDepthTextureId, ImageSize, UvTop, UvBottom);
 
 		  ImGui::EndTabItem();
 	  }
@@ -946,12 +988,34 @@ void MainLayer::onImGUIRender()
 
 	  ImGui::EndTabBar();
   }
+ 
+  ImGui::End();
   
+  ImGui::Begin("deferred rendering data");
+
+  GLuint vertexPositionsId = m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(0)->getID();
+
+  ImGui::Image((void*)(intptr_t)vertexPositionsId, ImageSize, UvTop, UvBottom);
+
+  ImGui::SameLine();
+  GLuint normalsId = m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(1)->getID();
+
+  ImGui::Image((void*)(intptr_t)normalsId, ImageSize, UvTop, UvBottom);
+
+  GLuint diffSpecId = m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(2)->getID();
+
+  ImGui::Image((void*)(intptr_t)diffSpecId, ImageSize, UvTop, UvBottom);
+  
+  ImGui::SameLine();
+  GLuint linDepthTextureId = m_renderer.getRenderPass(m_linDepthPassIdx).target->getTarget(0)->getID();
+  
+
+
+  ImGui::Image((void*)(intptr_t)linDepthTextureId, ImageSize, UvTop, UvBottom);
 
 
 
   ImGui::End();
-
 
 
 }
@@ -986,7 +1050,7 @@ void MainLayer::createActors(int num, float coordRangeMin, float coordRangeMax, 
 		Object.depthGeometry = depthVAO;
 		Object.depthMaterial = depthMat;
 		Object.translation = glm::vec3(Randomiser::uniformFloatBetween(coordRangeMin, coordRangeMax), -3.0f, Randomiser::uniformFloatBetween(coordRangeMin, coordRangeMax));
-		Object.scale = glm::vec3(5.0f, 5.0f, 5.0f);
+		
 		Object.recalc();
 		m_scene->m_actors.push_back(Object);
 	}
@@ -1003,7 +1067,7 @@ void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std:
 	Object.depthGeometry = depthVao;
 	Object.depthMaterial = depthMat;
 	Object.translation = initialPos;
-	Object.scale = glm::vec3(5.0f, 5.0f, 5.0f);
+	
 	Object.recalc();
 	m_scene->m_actors.push_back(Object);
 
@@ -1020,7 +1084,7 @@ void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr< VAO> Vao, std
 	Object.material = mat;
 
 	Object.translation = initialPos;
-	Object.scale = glm::vec3(5.0f, 5.0f, 5.0f);
+	
 	Object.recalc();
 	m_scene->m_actors.push_back(Object);
 
@@ -1036,11 +1100,26 @@ void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std:
 	Object.material = mat;
 
 	Object.translation = initialPos;
-	Object.scale = glm::vec3(5.0f, 5.0f, 5.0f);
+	
 	Object.recalc(); 
 	outId = m_scene->m_actors.size();
 	m_scene->m_actors.push_back(Object);
 
+
+}
+
+void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, size_t& outId, std::shared_ptr<Scene>& Scene)
+{
+
+	Actor Object;
+	Object.geometry = Vao;
+	Object.material = mat;
+
+	Object.translation = initialPos;
+
+	Object.recalc();
+	outId = Scene->m_actors.size();
+	Scene->m_actors.push_back(Object);
 
 }
 
@@ -1051,7 +1130,7 @@ void MainLayer::addPointLight(glm::vec3 colour,glm::vec3 position, glm::vec3 att
 	pointLight.position = position;
 	pointLight.colour = colour;
 	pointLight.constants = attenuation;
-	m_scene->m_pointLights.push_back(pointLight);
+	m_lightPassScene->m_pointLights.push_back(pointLight);
 
 }
 
@@ -1061,7 +1140,6 @@ void MainLayer::addPointLights(int PointLightNum)
 	for (int i = 0; i < PointLightNum; i++) {
 
 		glm::vec3 pointLightColour  = glm::vec3(Randomiser::uniformFloatBetween(0.0, 0.90f), Randomiser::uniformFloatBetween(0.0, 0.90f), Randomiser::uniformFloatBetween(0.0, 0.90f));
-		//glm::vec3 pointLightColour = glm::vec3(1.0f, 1.0f, 1.0f);
 		glm::vec3 position = glm::vec3(Randomiser::uniformFloatBetween(-30.0f, 30.0f), -1.0f, Randomiser::uniformFloatBetween(-30.0f, 30.0f));
 		addPointLight(pointLightColour, position, attenuation);
 
@@ -1076,9 +1154,9 @@ void MainLayer::addPointLightDataToPass(RenderPass& pass, int PointLightNum)
 
 	for (int i = 0; i < PointLightNum; i++) {
 		std::printf("adding point light\n ");
-		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].colour", m_scene->m_pointLights[i].colour);
-		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].position", m_scene->m_pointLights[i].position);
-		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].constants", m_scene->m_pointLights[i].constants);
+		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].colour", m_lightPassScene->m_pointLights[i].colour);
+		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].position", m_lightPassScene->m_pointLights[i].position);
+		pass.setCachedValue("b_lights", "pLights[" + std::to_string(i) + "].constants", m_lightPassScene->m_pointLights[i].constants);
 
 	}
 

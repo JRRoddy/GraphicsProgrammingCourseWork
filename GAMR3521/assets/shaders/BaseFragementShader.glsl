@@ -49,7 +49,6 @@ layout (std140, binding = 0) uniform b_camera
 	uniform vec3 u_viewPos;
 };
 
-uniform sampler2D u_prePassDepthTexture;
 uniform sampler2D u_shadowMap;
 uniform int u_shadowSampleRadius;
 uniform vec2 u_shadowMapSize;
@@ -62,15 +61,11 @@ uniform int u_antiAliasingOn;
 vec3 getDirectionalLight() ;
 vec3 getPointLight(int idx) ;
 vec3 getSpotLight(int idx) ;
-bool hasPassedDepthTest();
 float shadowContribution();
 
 void main()
 {
     
-	// z pre pass implemented for floor shader 
-	// commented version is in phongFrag shader 
-	if(hasPassedDepthTest() == false) return;
      
 
 	vec3 result = vec3(0.0, 0.0, 0.0); 
@@ -159,26 +154,7 @@ vec3 getSpotLight(int idx)
 }
 
 
-bool hasPassedDepthTest()
-{
-  
-  float clipSpaceZ =  clipSpaceCoords.z / clipSpaceCoords.w;
 
-  float remapToDepthRange = clipSpaceZ * 0.5 + 0.5;
-
-
-  vec2 TCoordinatesForDepth = vec2(clipSpaceCoords.xy / clipSpaceCoords.w) * 0.5 + 0.5;
-
-  float depthCompareSample = texture(u_prePassDepthTexture,TCoordinatesForDepth).r;
-  float bias = 0.001;
-  if(remapToDepthRange >= depthCompareSample + bias) return false;
-
-  return true;
-
-
-
-
-}
 
 float shadowContribution()
 {

@@ -29,6 +29,10 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/shadowMapPrePassFrag.glsl"
         "assets/shaders/shadowMapVisualiseFrag.glsl"
         "assets/shaders/shadowMapVisualisationVert.glsl"
+        "assets/shaders/deferredPrePassVert.glsl"
+        "assets/shaders/deferredPrePassFrag.glsl"
+        "assets/shaders/diffuseOnlyDRPassFrag.glsl"
+        "assets/shaders/diffuseOnlyDRPassVert.glsl"
         
 )
 

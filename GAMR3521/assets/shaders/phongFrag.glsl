@@ -2,12 +2,13 @@
 
 layout(location = 0) out vec4 colour;
 
-in vec4 fragmentPosLightSpace;
-//in vec3 normal;
-in vec3 fragmentPos;
+
+
+
 in vec2 texCoord;
-in mat3 tangentToWorld;
-in vec4 clipSpaceCoords;
+
+
+
 struct directionalLight
 {
 	vec3 colour;
@@ -39,8 +40,18 @@ const int numSpotLights = 1;
 
 uniform sampler2D u_prePassDepthTexture;
 uniform sampler2D u_shadowMap;
+
+uniform sampler2D u_skyBoxColBuffer;
 uniform int u_shadowSampleRadius;
 uniform int u_antiAliasingOn;
+
+uniform mat4 u_lightSpaceMatrix;
+
+
+
+
+
+
 
 layout (std140, binding = 1) uniform b_lights
 {
@@ -57,26 +68,47 @@ layout (std140, binding = 0) uniform b_camera
 };
 
 
-uniform vec3 u_albedo;
-uniform sampler2D u_albedoMap;
-uniform sampler2D u_specularMap;
+uniform float u_farClip;
+uniform float u_nearClip; 
+
+
+
 uniform sampler2D u_normalMap;
-
+uniform sampler2D u_diffSpecMap;
+uniform sampler2D u_fragmentPositions;
 // forward declare
-vec3 getDirectionalLight() ;
-vec3 getPointLight(int idx) ;
-vec3 getSpotLight(int idx) ;
-float specularStrength = vec3(texture(u_specularMap,texCoord)).r;
-vec3 normalFromMap = texture(u_normalMap, texCoord).rgb;
-vec3 normal = normalize(tangentToWorld * (normalFromMap * 2.0 - 1.0));
+vec3 getDirectionalLight();
+vec3 getPointLight(int idx);
+vec3 getSpotLight(int idx);
+float lineariseDepth(float zDepth);
 
-bool hasPassedDepthTest();
+// values sampled from the deffered rendering pass 
+vec3 fragmentPos = texture(u_fragmentPositions,texCoord).rgb;
+
+vec4 fragmentPosLightSpace  = u_lightSpaceMatrix * vec4(fragmentPos,1.0);  
+
+float specularStrength = texture(u_diffSpecMap,texCoord).a;
+
+vec3 normal = texture(u_normalMap, texCoord).rgb;
+
 float shadowContribution();
 
 void main()
 {
 
-    if(hasPassedDepthTest() == false) return;
+
+   float curDepth = texture(u_prePassDepthTexture,texCoord).r;
+   
+   float linearisedDepth = (lineariseDepth(curDepth) - u_nearClip) / (u_farClip - u_nearClip);
+
+   if(linearisedDepth >= 0.9999) 
+   {
+      vec3 skyBoxCol = texture(u_skyBoxColBuffer,texCoord).rgb;
+
+	  colour = vec4(skyBoxCol,1.0);
+	  return;
+   
+   }
 
 	vec3 result = vec3(0.0, 0.0, 0.0); 
 	
@@ -93,8 +125,8 @@ void main()
 	}
 	      
 
-        vec3 albedoColour = texture(u_albedoMap,texCoord).rgb; 
-        albedoColour = pow(albedoColour,vec3(2.2)); 
+    vec3 albedoColour = texture(u_diffSpecMap,texCoord).rgb; 
+    albedoColour = pow(albedoColour,vec3(2.2)); 
         
 	colour = vec4(result * albedoColour, 1.0);
 }
@@ -113,7 +145,7 @@ vec3 getDirectionalLight()
 	
 	float shadowAmount = shadowContribution();
 
-	return ambient + (1.0 - shadowAmount)* (diffuse + specular);
+	return ambient + (1.0 - shadowAmount)  *  (diffuse + specular);
 }
 
 vec3 getPointLight(int idx)
@@ -167,29 +199,7 @@ vec3 getSpotLight(int idx)
 
 
 
-bool hasPassedDepthTest()
-{
 
-  // manual perspective divide to normalize the z value we will use 
-  // as our depth value
-  float fragClipSpaceZ = clipSpaceCoords.z / clipSpaceCoords.w;
-
-  // convert to 0-1 range as depth buffer values are in range 0-1
-  float fragClipSpaceNormalisedZ = fragClipSpaceZ * 0.5 + 0.5;
-  
-  // we then get texture coordinates by extracting the x and y from our clip space 
-  // frag coord and performing a manul perspective divide to convert them to ndc  
-  // then mapping them to 0-1 range so they can be used as coordinates to sample from our pre pass 
-  // depth texture to check if the depth value we have in the clip space frag coord will pass the depth test
-  vec2 TCForExtractingDepthValue = (clipSpaceCoords.xy / clipSpaceCoords.w) * 0.5 + 0.5; 
-
-  float extractedDepthValue = texture(u_prePassDepthTexture,TCForExtractingDepthValue).r;
-  float bias = 0.01;
-  if(fragClipSpaceNormalisedZ >= extractedDepthValue + bias) return false;
-
-  return true;
-
-}
 
 float shadowContribution()
 {
@@ -272,3 +282,18 @@ float shadowContribution()
 }
 
 
+float lineariseDepth(float zDepth)
+{
+   
+   float depthClip = zDepth * 2.0 -1.0; 
+
+
+
+   float linearisedDepth = (2.0 * u_nearClip * u_farClip) / ( u_nearClip + u_farClip - depthClip * (u_farClip - u_nearClip)); 
+
+   return linearisedDepth;
+}
+
+
+
+  

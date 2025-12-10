@@ -33,7 +33,7 @@ void main()
    
     gammaCorrect = clamp(gammaCorrect,0.0,1.0); 
      
-    linearDepthColour = vec4(gammaCorrect,1.0);
+    linearDepthColour = vec4(finalCol,1.0);
      
  
     

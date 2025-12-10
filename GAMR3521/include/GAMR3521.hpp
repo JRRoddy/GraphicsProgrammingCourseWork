@@ -41,6 +41,7 @@ protected:
 
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat);
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, size_t & outId);
+	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, size_t& outId, std::shared_ptr<Scene>&Scene);
 
 	void addPointLight(glm::vec3 colour, glm::vec3 position, glm::vec3 attenuation = { 1.f, 0.1f, 0.01f });
 
@@ -54,6 +55,8 @@ private:
 
 
 	std::shared_ptr<Scene> m_scene; // Scene where actors reside
+	std::shared_ptr<Scene> m_skyboxScene;
+	std::shared_ptr<Scene> m_lightPassScene;
 	std::shared_ptr<Scene> m_postProcessScene; 
 
 	std::shared_ptr<Scene> m_blurScene;
@@ -73,7 +76,7 @@ private:
 	size_t m_skyBoxIdx;
 	size_t m_linDepthPassIdx;
 	size_t m_mainPassIdx;
-	size_t m_zPrePasIdx;
+	size_t m_deferredPrePasIdx;
 	size_t m_shadowMapPrepassIdx; 
 	size_t m_shadowMapVisualisationIdx;
 	//post processing materials
@@ -85,6 +88,8 @@ private:
 	std::shared_ptr<Material> m_luminanceContrastMat;
 	std::shared_ptr<Material> m_visualiseDepthMat; 
 	std::shared_ptr<Material> m_fogMat;
+	std::shared_ptr<Material> m_gPassMat;
+	std::shared_ptr<Material> m_gPassDiffuseOnly;
 	std::shared_ptr<Material> m_phongModelMaterial;
 	std::shared_ptr<Material> m_floorModelMaterial;
 
