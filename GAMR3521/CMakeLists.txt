@@ -33,7 +33,19 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/deferredPrePassFrag.glsl"
         "assets/shaders/diffuseOnlyDRPassFrag.glsl"
         "assets/shaders/diffuseOnlyDRPassVert.glsl"
-        
+        "assets/shaders/floorGeo.glsl"
+ 	"assets/shaders/normalVisualVert.glsl"
+        "assets/shaders/normalVisualGeo.glsl"
+        "assets/shaders/normalVisualFrag.glsl"
+        "assets/shaders/bilboardVert.glsl"
+        "assets/shaders/bilboardGeo.glsl"
+        "assets/shaders/bilboardFrag.glsl"
+        "assets/shaders/moonBilboardFrag.glsl"
+        "assets/shaders/normalOverlayVert.glsl"
+	"assets/shaders/normalOverlayFrag.glsl"
+ 	"assets/shaders/sandingVert.glsl"
+ 	"assets/shaders/sandingGeo.glsl"
+        "assets/shaders/sandingFrag.glsl"
 )
 
 # Application Files

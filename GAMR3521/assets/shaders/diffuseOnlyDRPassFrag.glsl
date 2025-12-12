@@ -22,7 +22,7 @@ void main()
   float specular = 0.8; 
   
   g_position = vec4(fragmentPos,1.0);
-  g_normal = vec4(0.0,1.0,0.0,1.0);
+  g_normal = vec4(normal,1.0);
   vec3 diffuse = texture(u_albedoMap,texCoord).rgb;
   g_diffSpec = vec4(u_albedo*diffuse,specular);
   

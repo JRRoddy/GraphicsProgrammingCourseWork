@@ -40,7 +40,7 @@ const int numSpotLights = 1;
 
 uniform sampler2D u_prePassDepthTexture;
 uniform sampler2D u_shadowMap;
-
+uniform sampler2D u_fragmentId;
 uniform sampler2D u_skyBoxColBuffer;
 uniform int u_shadowSampleRadius;
 uniform int u_antiAliasingOn;
@@ -91,7 +91,14 @@ float specularStrength = texture(u_diffSpecMap,texCoord).a;
 
 vec3 normal = texture(u_normalMap, texCoord).rgb;
 
+vec3 albedoColour = texture(u_diffSpecMap,texCoord).rgb; 
+
 float shadowContribution();
+void moonLight(float fragmentId, vec4 lightColour);
+
+
+
+
 
 void main()
 {
@@ -101,14 +108,22 @@ void main()
    
    float linearisedDepth = (lineariseDepth(curDepth) - u_nearClip) / (u_farClip - u_nearClip);
 
+
+
+  
+
+
    if(linearisedDepth >= 0.9999) 
    {
       vec3 skyBoxCol = texture(u_skyBoxColBuffer,texCoord).rgb;
 
-	  colour = vec4(skyBoxCol,1.0);
+	 colour = vec4(skyBoxCol,1.0);
 	  return;
    
    }
+  
+ 
+
 
 	vec3 result = vec3(0.0, 0.0, 0.0); 
 	
@@ -124,12 +139,17 @@ void main()
 		//result += getSpotLight(i);
 	}
 	      
-
-    vec3 albedoColour = texture(u_diffSpecMap,texCoord).rgb; 
     albedoColour = pow(albedoColour,vec3(2.2)); 
         
-	colour = vec4(result * albedoColour, 1.0);
+    colour = vec4(result * albedoColour, 1.0); 
+	float fragmentId = texture(u_fragmentId,texCoord).r;
+	moonLight(fragmentId,colour);
+
+
 }
+
+
+
 
 
 vec3 getDirectionalLight()
@@ -295,5 +315,21 @@ float lineariseDepth(float zDepth)
 }
 
 
+void moonLight(float fragmentId, vec4 lightColour)
+{
 
-  
+   if(fragmentId == 1.0)
+   {
+     
+
+	  vec3 relLumScalars = vec3(0.299,0.587,0.114);
+	  float relLum = dot(albedoColour,relLumScalars);
+	  colour = vec4(mix(albedoColour,(albedoColour + lightColour.rgb),relLum),1.0);
+      
+   
+   
+   }
+   
+
+
+}

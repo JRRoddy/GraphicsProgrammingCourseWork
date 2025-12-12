@@ -19,7 +19,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_shadowPrePassScene.reset(new Scene);
 	m_shadowPrePassVisualScreenScene.reset(new Scene);
 	m_finalResult.reset(new Scene);
-	
+	m_normalVisualisationScene.reset(new Scene);
+	m_normalOverlayScene.reset(new Scene);
 	// creating zpre pass mat here so we can use it for all actors below 
 	ShaderDescription deferredPassDesc;
 	deferredPassDesc.type = ShaderType::rasterization;
@@ -31,8 +32,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_gPassMat = std::make_shared<Material>(deferredPrePassShader);
 
 	ShaderDescription deferredDiffuseOnlyPassDesc;
-	deferredDiffuseOnlyPassDesc.type = ShaderType::rasterization;
+	deferredDiffuseOnlyPassDesc.type = ShaderType::geometry;
 	deferredDiffuseOnlyPassDesc.vertexSrcPath = "./assets/shaders/diffuseOnlyDRPassVert.glsl";
+	deferredDiffuseOnlyPassDesc.geometrySrcPath = "./assets/shaders/floorGeo.glsl";
 	deferredDiffuseOnlyPassDesc.fragmentSrcPath = "./assets/shaders/diffuseOnlyDRPassFrag.glsl";
 
 	std::shared_ptr<Shader> deferredDiffuseOnlyPrePassShader = std::make_shared<Shader>(deferredDiffuseOnlyPassDesc);
@@ -49,7 +51,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	std::shared_ptr<Shader> shadowPrePassShader = std::make_shared<Shader>(shadowPrePassDesc);
 
-	std::shared_ptr<Material> shadowPrePassMat = std::make_shared<Material>(shadowPrePassShader);
+	m_shadowPrePassMat = std::make_shared<Material>(shadowPrePassShader);
 
 
 
@@ -57,6 +59,10 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	glm::mat4 lightSpaceView = glm::lookAt(lightPosition, m_shadowMapVariables.center, m_shadowMapVariables.up);
 
 	
+	
+
+
+
 	// create a descriptor for a particualr shader we want to make deifning the type of shader(int this case rasterization shader that uses both a vertex and fragment shader ) 
 	
 	ShaderDescription phongShaderDesc;
@@ -71,15 +77,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	phongShader = std::make_shared<Shader>(phongShaderDesc);
 
 
-	// defining descriptor for floor shader
-	ShaderDescription BaseFloorShaderDesc; 
-	BaseFloorShaderDesc.type = ShaderType::rasterization; 
-	BaseFloorShaderDesc.vertexSrcPath = "./assets/shaders/BaseVertexShader.glsl";
-	BaseFloorShaderDesc.fragmentSrcPath = "./assets/shaders/BaseFragementShader.glsl";
 
-	std::shared_ptr<Shader> FloorShader; 
-	FloorShader = std::make_shared<Shader>(BaseFloorShaderDesc);
-
+	
 	// extracting vertex data from grid 
 	std::shared_ptr<Grid> floorGrid = std::make_shared<Grid>(); 
 	std::vector<float>  floorGridVertecies = floorGrid->getVertices(); 
@@ -114,68 +113,112 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	FloorTexture = std::make_shared<Texture>("./assets/textures/floorTex.png");
 
 
-	// defining floor material
-	m_floorModelMaterial = std::make_shared<Material>(FloorShader, "u_model");
 	
-/*	m_floorModelMaterial->setValue("u_albedo", m_floorColour);
-	m_floorModelMaterial->setValue("u_albedoMap", FloorTexture);*/ 
 
 	m_gPassDiffuseOnly->setValue("u_albedo", m_floorColour);
 	m_gPassDiffuseOnly->setValue("u_albedoMap", FloorTexture);	// initialsiing the floor actor using the previously defined data 
 	Actor FloorActor;
 	FloorActor.geometry = FloorGridVAO;
 	FloorActor.material = m_gPassDiffuseOnly;
-	FloorActor.depthGeometry = floorVaoDepth;
+	//FloorActor.depthGeometry = floorVaoDepth;
 	// define the translation 
 	FloorActor.translation = glm::vec3{ -50.0f,-5.0f,-50.0f };
 	FloorActor.recalc(); 
 	m_FloorIdx = m_scene->m_actors.size();
 	m_scene->m_actors.push_back(FloorActor);                                                                    
 
+
+	ShaderDescription bilboardShaderDesc; 
+	bilboardShaderDesc.type = ShaderType::geometry;
+	bilboardShaderDesc.vertexSrcPath = "./assets/shaders/bilboardVert.glsl";
+	bilboardShaderDesc.geometrySrcPath = "./assets/shaders/bilboardGeo.glsl";
+	bilboardShaderDesc.fragmentSrcPath = "./assets/shaders/bilboardFrag.glsl";
+
+
+
+	std::shared_ptr<Shader> bilboardShader = std::make_shared<Shader>(bilboardShaderDesc);
+	std::shared_ptr<Texture> bilboardTexture = std::make_shared<Texture>("./assets/textures/tree.png");
+	std::shared_ptr<Material> bilboardMat = std::make_shared<Material>(bilboardShader);
+
+	bilboardMat->setPrimitive(GL_POINTS);
+	bilboardMat->setValue("u_scale", m_bilboardScale);
+	bilboardMat->setValue("u_bilBoardTexture", bilboardTexture);
+
+	std::vector<float> bilboardPositions = {};
+	std::vector<uint32_t> bilboardIndicies;
+
+	for (int i = 0; i < bilboardNum; i++) {
+		  
+		bilboardPositions.push_back(Randomiser::uniformFloatBetween(-40.0f,40.0f));
+		bilboardPositions.push_back(m_bilboardScale - 5.0f);
+		bilboardPositions.push_back(Randomiser::uniformFloatBetween(-40.0f, 40.0f));
+		bilboardIndicies.push_back(i);
+		 
+	}
+
+
+	std::shared_ptr<VAO> bilboardVAO = std::make_shared<VAO>(bilboardIndicies);
+
+	bilboardVAO->addVertexBuffer(bilboardPositions, { {GL_FLOAT,3} });
+	
+
+	generateBilboards(bilboardPositions, bilboardVAO, bilboardMat);
+	
+	
+
+	uint32_t Attributes = Model::VertexFlags::positions | Model::VertexFlags::normals |
+		Model::VertexFlags::uvs | Model::VertexFlags::tangents;
 	// create the cube model 
-	Model cubeModel("./assets/models/whitecube/whitecube.obj");
+	Model cubeModel("./assets/models/whitecube/whitecube.obj",Attributes);
 	// defining the layout of the data that will be allocated on the GPU 
 	VBOLayout cubeLayout = {
 		{GL_FLOAT, 3}, // Position
 		{GL_FLOAT, 3}, // Normal
-		{GL_FLOAT, 2},  // UV co-ords
-	    {GL_FLOAT,3}   //tangent
+		{GL_FLOAT, 2}, // UV co-ords
+		{GL_FLOAT,3}   // tangent
+		
 	};
 
 	
 
 	// creare the buffer that will store the vertex data that is described by the layout we defined above for the cube VAO 
-	//std::shared_ptr<VAO> cubeVAO;
-	//cubeVAO = std::make_shared<VAO>(cubeModel.m_meshes[0].indices); 
+	std::shared_ptr<VAO> cubeVAO;
+	cubeVAO = std::make_shared<VAO>(cubeModel.m_meshes[0].indices); 
 	//// defining the vertex data for the VBO using the mesh data at index 0 because the cube model only has one mesh
 	//// also passing in the layout of the data to be allocated on the GPU 
-	//cubeVAO->addVertexBuffer(cubeModel.m_meshes[0].vertices, cubeLayout);
+	cubeVAO->addVertexBuffer(cubeModel.m_meshes[0].vertices, cubeLayout);
 	//// create and define the diffuse texture that will be used as the base colour for the cube 
-	//std::shared_ptr<Texture> cubeTextureDiffuse;
+	std::shared_ptr<Texture> cubeTextureDiffuse;
 	//// grab the diffuse texture of the cube mesh at index 0 using the defined enmum (as an index) then  taking the cstring of the texture path we accessed 
-	//cubeTextureDiffuse = std::make_shared<Texture>(cubeModel.m_meshes[0].texturePaths[aiTextureType_DIFFUSE].string().c_str());
+	cubeTextureDiffuse = std::make_shared<Texture>(cubeModel.m_meshes[0].texturePaths[aiTextureType_DIFFUSE].string().c_str());
 
-	//std::shared_ptr<Texture> cubeTexture;
-
+	std::shared_ptr<Texture> cubeNormal = std::make_shared<Texture>("./assets/textures/normal.jpg");
+	std::shared_ptr<Shader> cubeShader = std::make_shared<Shader>(deferredPassDesc);
+	std::shared_ptr<Material> gpass = std::make_shared<Material>(cubeShader);
 	// making a material out of the shader we made and setting the diffuse map to be used by the phong lighting 
 	// we also set a scalar value for the diffuse colour 
-	//std::shared_ptr<Material> cubeMaterial;
-	//cubeMaterial = std::make_shared<Material>(phongShader, "u_model");
-	//cubeMaterial->setValue("u_albedo", glm::vec3(1.0f));
-	//// atttach the diffuse map we created for the cube after extracting the diffuse texture path from its texture paths 
-	//cubeMaterial->setValue("u_albedoMap", cubeTextureDiffuse);
+	std::shared_ptr<Material> cubeMaterial;
+	cubeMaterial = gpass;
 
+	//// atttach the diffuse map we created for the cube after extracting the diffuse texture path from its texture paths 
+	cubeMaterial->setValue("u_albedoMap", cubeTextureDiffuse);
+	cubeMaterial->setValue("u_normalMap", cubeNormal);
+	std::shared_ptr<VAO> cubeDepth = std::make_shared<VAO>(cubeModel.m_meshes[0].indices);
+	cubeDepth->addVertexBuffer(cubeModel.m_meshes[0].positions, depthLayout);
 	//// Actor represents an object
-	//Actor cube;
+	Actor cube;
 	//// set the cube geomtry to be the  defined VAO that has the vbo for the vertex data of the cube bound to it 
-	//cube.geometry = cubeVAO;
+	cube.geometry = cubeVAO;
 	//// set the material of the cube to be the one defined above that is using the phong lighting shader and the texture that we extracted from the cubes model data and loaded (using the texture path)
-	////cube.material = cubeMaterial;
+    cube.material = cubeMaterial;
+	cube.depthMaterial = m_shadowPrePassMat; 
+	cube.depthGeometry = cubeDepth;
 	////  define model matrix for cube 
-	//cube.translation = glm::vec3(0.f, -1.f, -6.f);
-	//cube.rotation = glm::quat(glm::vec3(0.0f, 0.4f, 0.0f));
-	//cube.recalc();
-	/*m_scene->m_actors.push_back(cube);*/
+	cube.translation = glm::vec3(0.f, -1.f, -6.f);
+	cube.rotation = glm::quat(glm::vec3(0.0f, 0.4f, 0.0f));
+	cube.recalc();
+	m_cubeIdx = m_scene->m_actors.size();
+	m_scene->m_actors.push_back(cube);
 
 	VBOLayout modelLayout = {
 		{GL_FLOAT, 3}, // Position
@@ -184,8 +227,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	    {GL_FLOAT,3}   // tangent
 	};
 
-	uint32_t Attributes = Model::VertexFlags::positions | Model::VertexFlags::normals | 
-		                  Model::VertexFlags::uvs | Model::VertexFlags::tangents;
+	
 
 
 	Model model = Model("./assets/models/Vampire/vampire.obj",Attributes);
@@ -210,8 +252,44 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_gPassMat->setValue("u_specularMap", modelSpecularTexture);
 	m_gPassMat->setValue("u_normalMap", modelNormalTexture);
 
-	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO, m_gPassMat,modelVaoDepth,shadowPrePassMat);
-	createActors(10, -10.0f, 10.0f, ModelVAO, modelVaoDepth, m_gPassMat,shadowPrePassMat);
+
+
+
+	
+
+
+
+	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO, m_gPassMat,modelVaoDepth,m_shadowPrePassMat);
+	createActors(10, -10.0f, 10.0f, ModelVAO, modelVaoDepth, m_gPassMat,m_shadowPrePassMat);
+	ShaderDescription sandingShaderDesc;
+	sandingShaderDesc.type = ShaderType::geometry;
+	sandingShaderDesc.vertexSrcPath = "./assets/shaders/sandingVert.glsl";
+	sandingShaderDesc.geometrySrcPath = "./assets/shaders/sandingGeo.glsl";
+	sandingShaderDesc.fragmentSrcPath = "./assets/shaders/sandingFrag.glsl";
+
+	std::shared_ptr<Shader> sandingShader = std::make_shared<Shader>(sandingShaderDesc);
+
+	std::shared_ptr<Material> sandingMat = std::make_shared<Material>(sandingShader);
+
+
+	createActor(glm::vec3( - 3.0f, -3.0f, -11.0f),ModelVAO,sandingMat,modelVaoDepth,m_shadowPrePassMat);
+
+
+	ShaderDescription normalVisShaderDesc;
+	normalVisShaderDesc.type = ShaderType::geometry;
+	normalVisShaderDesc.vertexSrcPath = "./assets/shaders/normalVisualVert.glsl";;
+	normalVisShaderDesc.geometrySrcPath = "./assets/shaders/normalVisualGeo.glsl";;
+	normalVisShaderDesc.fragmentSrcPath = "./assets/shaders/normalVisualFrag.glsl";
+
+	std::shared_ptr<Shader> normalVisShader = std::make_shared<Shader>(normalVisShaderDesc);
+
+
+	std::shared_ptr<Material> normalVisMat = std::make_shared<Material>(normalVisShader);
+	normalVisMat->setValue("u_normalLength", m_normalLength);
+	m_normalVisualisationScene->m_actors = std::vector(m_scene->m_actors);
+
+	
+	
 	//skybox 
 
 	// calculate the number of indidces required for the sky box data 
@@ -343,10 +421,11 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 		{AttachmentType::ColourHDR,true},
 		{AttachmentType::ColourHDR,true},
 		{AttachmentType::ColourHDR,true},
+		{AttachmentType::ColourHDR,true},
 		{AttachmentType::Depth,true},
 
-
 	};
+	
 	
 
 
@@ -367,13 +446,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	
 
-	/*m_shadowPrePassScene->m_actors = std::vector<Actor>(m_scene->m_actors);
-	for (int i = 0; i < m_shadowPrePassScene->m_actors.size(); i++) {
-		if (i != m_FloorIdx) {
-			m_shadowPrePassScene->m_actors[i].depthMaterial = shadowPrePassMat;
-
-		}
-	}*/
+	
 
 	
 
@@ -404,12 +477,10 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_floorModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPrePass.camera.projection * shadowMapPrePass.camera.view);
 	*/
 	m_phongModelMaterial->setValue("u_shadowMap", shadowMapPrePass.target->getTarget(0));
-	m_floorModelMaterial->setValue("u_shadowMap", shadowMapPrePass.target->getTarget(0));
 	
 	m_phongModelMaterial->setValue("u_shadowSampleRadius", m_shadowMapSampleRadi);
-	m_floorModelMaterial->setValue("u_shadowSampleRadius", m_shadowMapSampleRadi);
+	
 	m_phongModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
-	m_floorModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
 
 
 	RenderPass skyBoxPass;
@@ -428,6 +499,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 
 
+	
+
 	Actor lightPassQuad;
 	lightPassQuad.geometry = ScreenQuadVAO;
 	lightPassQuad.material = m_phongModelMaterial;
@@ -438,10 +511,11 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_phongModelMaterial->setValue("u_fragmentPositions", deferredPrePass.target->getTarget(0));
 	m_phongModelMaterial->setValue("u_normalMap", deferredPrePass.target->getTarget(1));
 	m_phongModelMaterial->setValue("u_diffSpecMap", deferredPrePass.target->getTarget(2));
-	m_phongModelMaterial->setValue("u_prePassDepthTexture", deferredPrePass.target->getTarget(3));
+	m_phongModelMaterial->setValue("u_prePassDepthTexture", deferredPrePass.target->getTarget(4));
 	m_phongModelMaterial->setValue("u_skyBoxColBuffer", skyBoxPass.target->getTarget(0));
 	m_phongModelMaterial->setValue("u_nearClip", m_nearClippingPlane);
 	m_phongModelMaterial->setValue("u_farClip", m_farClippingPlane);
+	m_phongModelMaterial->setValue("u_fragmentId", deferredPrePass.target->getTarget(3));
 
 	// initialise a particualr pass for the renderer to perfrom rendering is often sperated inot particualr passes 
 	// as certain operations need to be performed in particualr order 
@@ -482,6 +556,64 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_renderer.addRenderPass(mainPass);
 	//  colour inversion post process pass 
 	
+
+	
+	for (int i = 0; i < m_normalVisualisationScene->m_actors.size(); i++) {
+		m_normalVisualisationScene->m_actors[i].material = normalVisMat;
+		m_normalVisualisationScene->m_actors[i].material->setValue("u_lightPassDepth", deferredPrePass.target->getTarget(4));
+
+	}
+	RenderPass normalVisPass; 
+	normalVisPass.scene = m_normalVisualisationScene;
+	normalVisPass.parseScene();
+	normalVisPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	normalVisPass.camera.projection = glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f);
+	normalVisPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	
+	normalVisPass.setCachedValue("b_camera", "u_projection", deferredPrePass.camera.projection);
+	normalVisPass.setCachedValue("b_camera", "u_view", deferredPrePass.camera.view);
+
+	m_normalVisualIdx = m_renderer.getPassCount();
+	m_renderer.addRenderPass(normalVisPass);
+
+
+	ShaderDescription normalOverlayShaderDesc;
+	normalOverlayShaderDesc.type = ShaderType::rasterization;
+	normalOverlayShaderDesc.vertexSrcPath = "./assets/shaders/normalOverlayVert.glsl";
+	normalOverlayShaderDesc.fragmentSrcPath = "./assets/shaders/normalOverlayFrag.glsl";
+
+
+	std::shared_ptr<Shader> normalOverlayShader = std::make_shared<Shader>(normalOverlayShaderDesc); 
+
+	m_normalOverlayMat = std::make_shared<Material>(normalOverlayShader);
+
+	m_normalOverlayMat->setValue("u_sceneCol", mainPass.target->getTarget(0));
+	m_normalOverlayMat->setValue("u_normalSceneCol", normalVisPass.target->getTarget(0));
+	m_normalOverlayMat->setValue("u_active", m_normalOverlayOn);
+
+	Actor normalOverlayQuad;
+
+	normalOverlayQuad.geometry = ScreenQuadVAO;
+	normalOverlayQuad.material = m_normalOverlayMat;
+
+	m_normalOverlayScene->m_actors.push_back(normalOverlayQuad);
+
+	RenderPass normalOverlayPass; 
+	normalOverlayPass.scene = m_normalOverlayScene;
+	normalOverlayPass.parseScene();
+	normalOverlayPass.target = std::make_shared<FBO>(m_winRef.getSize(), TypicalLayout);
+	normalOverlayPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	normalOverlayPass.viewPort = ViewPort{ 0,0,m_winRef.getWidth(),m_winRef.getHeight() };
+	normalOverlayPass.setCachedValue("b_camera2D", "u_view", normalOverlayPass.camera.view);
+	normalOverlayPass.setCachedValue("b_camera2D", "u_projection", normalOverlayPass.camera.projection);
+
+	m_normalOverlayIdx = m_renderer.getPassCount();
+	m_renderer.addRenderPass(normalOverlayPass);
+
+
+
+
+
 	ShaderDescription colourInverseShaderDesc; 
 	colourInverseShaderDesc.type = ShaderType::rasterization; 
 	colourInverseShaderDesc.vertexSrcPath = "./assets/shaders/PostProcessingVert.glsl";
@@ -490,7 +622,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Shader> colourInverseShader = std::make_shared<Shader>(colourInverseShaderDesc);
 
 	m_invertColourMat = std::make_shared<Material>(colourInverseShader);
-	m_invertColourMat->setValue("u_colourBufferTexture", mainPass.target->getTarget(0));
+	m_invertColourMat->setValue("u_colourBufferTexture", normalOverlayPass.target->getTarget(0));
     
 	RenderPass colourInversionPass;
 	colourInversionPass.scene = m_postProcessScene; 
@@ -614,7 +746,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Shader> fogShader = std::make_shared<Shader>(fogShaderDesc);
 	m_fogMat = std::make_shared<Material>(fogShader);
 	m_fogMat->setValue("u_colourBufferTexture", edgeDetectionPass.target->getTarget(0));
-	m_fogMat->setValue("u_depthTexture", deferredPrePass.target->getTarget(3));
+	m_fogMat->setValue("u_depthTexture", deferredPrePass.target->getTarget(4));
 	m_fogMat->setValue("u_fogColour", m_fogColour); 
 	m_fogMat->setValue("u_farClip", m_fogFar);
 	m_fogMat->setValue("u_nearClip", m_nearClippingPlane);
@@ -705,7 +837,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Shader> visualiseDepthShader = std::make_shared<Shader>(visualiseDepthShaderDesc); 
 
 	m_visualiseDepthMat = std::make_shared<Material>(visualiseDepthShader); 
-	m_visualiseDepthMat->setValue("u_depthBufferTexture", deferredPrePass.target->getTarget(3));
+	m_visualiseDepthMat->setValue("u_depthBufferTexture", deferredPrePass.target->getTarget(4));
 	m_visualiseDepthMat->setValue("u_nearClip", m_nearClippingPlane);
 	m_visualiseDepthMat->setValue("u_farClip",m_farClippingPlane);
 
@@ -738,8 +870,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Material> shadowMapVisMat = std::make_shared<Material>(shadowMapVisualShader);
 
 	shadowMapVisMat->setValue("u_depthBufferTexture", shadowMapPrePass.target->getTarget(0));
-	shadowMapVisMat->setValue("u_nearClip", -(m_shadowMapVariables.orthoSize/2));
-	shadowMapVisMat->setValue("u_farClip", m_shadowMapVariables.orthoSize * 2.0f);
+	shadowMapVisMat->setValue("u_nearClip", -(m_shadowMapVariables.orthoSize/5.0f));
+	shadowMapVisMat->setValue("u_farClip", m_shadowMapVariables.orthoSize * 5.0f);
 
 	Actor visualiseShadowDepthQuad;
 	visualiseShadowDepthQuad.geometry = ScreenQuadVAO;
@@ -843,8 +975,12 @@ void MainLayer::onUpdate(float timestep)
 	DepthPass& shadowMapPass = m_renderer.getDepthPass(m_shadowMapPrepassIdx);
 	shadowMapPass.setCachedValue("b_lightCamera","u_view",newLightSpaceMat);
 
-	m_phongModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPass.camera.projection * newLightSpaceMat);
-	
+
+	RenderPass &normalVis = m_renderer.getRenderPass(m_normalVisualIdx);
+	normalVis.setCachedValue("b_camera", "u_view", defferedPass.camera.view);
+	m_phongModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPass.camera.projection * newLightSpaceMat );
+
+
 
 
 }
@@ -963,7 +1099,7 @@ void MainLayer::onImGUIRender()
 
   ImVec2 ImageSize = ImVec2(512, 512);
 
-  ImGui::Begin("shadows");
+  ImGui::Begin("generic settings");
     
   if (ImGui::BeginTabBar("shadow settings")) {
 	  if (ImGui::BeginTabItem("shadowMapVisual")) { 
@@ -980,11 +1116,22 @@ void MainLayer::onImGUIRender()
 		  if (ImGui::Checkbox("shadow anti aliasing", (bool*)&m_shadowAntiAliasingOn)) {
 
 			  m_phongModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
-			  m_floorModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
 
 		  }
 		  ImGui::EndTabItem();
 	  }
+
+	  if (ImGui::BeginTabItem("normals")) {
+
+
+		  if (ImGui::Checkbox("visualise normals", (bool*)&m_normalOverlayOn)) {
+
+			  m_normalOverlayMat->setValue("u_active", m_normalOverlayOn);
+
+		  }
+		  ImGui::EndTabItem();
+	  }
+
 
 	  ImGui::EndTabBar();
   }
@@ -1017,6 +1164,10 @@ void MainLayer::onImGUIRender()
 
   ImGui::End();
 
+
+  
+
+   
 
 }
 
@@ -1121,6 +1272,54 @@ void MainLayer::createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std:
 	outId = Scene->m_actors.size();
 	Scene->m_actors.push_back(Object);
 
+}
+
+void MainLayer::generateBilboards(std::vector<float>& positions, std::shared_ptr<VAO> vao, std::shared_ptr<Material> material)
+{
+	Actor bilboard;
+
+	for (int i = 0; i <= positions.size() - 3; i+=3) {
+
+		bilboard.geometry = vao;
+		bilboard.material = material;
+		bilboard.depthMaterial = m_shadowPrePassMat;
+		bilboard.recalc();
+		m_scene->m_actors.push_back(bilboard);
+
+
+	}
+	
+
+	std::vector<uint32_t>moonIndices = { 0 };
+	std::vector<float> moonboardPositions = { 0.0f,30.0f,-50.0f };
+
+	ShaderDescription moonBilboardShaderDesc;
+	moonBilboardShaderDesc.type = ShaderType::geometry;
+	moonBilboardShaderDesc.vertexSrcPath = "./assets/shaders/bilboardVert.glsl";
+	moonBilboardShaderDesc.geometrySrcPath = "./assets/shaders/bilboardGeo.glsl";
+	moonBilboardShaderDesc.fragmentSrcPath = "./assets/shaders/moonBilboardFrag.glsl";
+
+
+
+	std::shared_ptr<Shader> moonBilBoardShader = std::make_shared<Shader>(moonBilboardShaderDesc);
+	std::shared_ptr<Texture> moonBilboardTexture = std::make_shared<Texture>("./assets/textures/moon.png");
+	std::shared_ptr<Material> moonBilboardMat = std::make_shared<Material>(moonBilBoardShader);
+
+	moonBilboardMat->setPrimitive(GL_POINTS);
+	moonBilboardMat->setValue("u_scale", m_bilboardScale);
+	moonBilboardMat->setValue("u_bilBoardMoonTexture", moonBilboardTexture);
+
+	std::shared_ptr<VAO> moonBilboardVAO = std::make_shared<VAO>(moonIndices);
+
+	moonBilboardVAO->addVertexBuffer(moonboardPositions, { {GL_FLOAT,3} });
+
+
+	Actor moonBilboard;
+	moonBilboard.geometry = moonBilboardVAO;
+	moonBilboard.material = moonBilboardMat;
+	moonBilboard.depthMaterial = m_shadowPrePassMat;
+	moonBilboard.recalc();
+	m_scene->m_actors.push_back(moonBilboard);
 }
 
 
