@@ -11,7 +11,7 @@ struct shadowMapVars {
 	float distanceAlongLightVec = 0.0f;  
 	float orthoSize = 0.0f;
 	
-	shadowMapVars(float distanceAlongLightVector = 60.0f, glm::vec3 c = glm::vec3(0.0f, 0.0f, 0.0f)) : 
+	shadowMapVars(float distanceAlongLightVector = 90.0f, glm::vec3 c = glm::vec3(0.0f, 0.0f, 0.0f)) : 
 	 distanceAlongLightVec(distanceAlongLightVector), center(c) {
 
 		orthoSize = distanceAlongLightVec * 0.75f;
@@ -119,7 +119,7 @@ private:
 	int m_shadowMapSampleRadi = 1;
 	//Gui
 	bool m_wireFrame{ false }; // render in wireframe 
-	glm::vec3 m_floorColour = { 0.35f,0.0f,0.0f };// floor colour manipulated by a colour wheel define using ImGui 
+	glm::vec3 m_floorColour = { 0.0f,0.35f,0.35f };// floor colour manipulated by a colour wheel define using ImGui 
 	glm::vec3 m_tintColour = {1.0f,1.0f,1.0f};
 	glm::vec3 m_fogColour = { 1.0f,1.0f,1.0f };
 	float m_LuminanceSaturationScalar = 0.0f;// used in the stauration shader to define the distacne from the grey scale colour formed by calcualting the lumiance and usingit is a grey scale vec3 
@@ -136,8 +136,12 @@ private:
 
 	int bilboardNum = 4;
 	float m_bilboardScale = 10.0f;
+	float m_terrainHeightOffset = -15.0f;
 
-
+	float m_terrainHeightScalar = 40.0f;
+	int m_shouldUseCDMNormals = 1;
+	int m_perFragNormals = 0;
+	int m_useTerrainHeightColour = 0;
 	std::array<const char*, 6> cubeMapPaths = {
 	"./assets/textures/oGLDevSkybox/sp3right.jpg",
 	"./assets/textures/oGLDevSkybox/sp3left.jpg",

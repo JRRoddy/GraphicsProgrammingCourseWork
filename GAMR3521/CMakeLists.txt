@@ -46,6 +46,9 @@ set (PROJECT_SHADER_FILES
  	"assets/shaders/sandingVert.glsl"
  	"assets/shaders/sandingGeo.glsl"
         "assets/shaders/sandingFrag.glsl"
+        "assets/shaders/floorTSControl.glsl"
+        "assets/shaders/floorTSEval.glsl"
+        "assets/shaders/imageCompute.glsl"
 )
 
 # Application Files

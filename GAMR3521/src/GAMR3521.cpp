@@ -32,15 +32,18 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_gPassMat = std::make_shared<Material>(deferredPrePassShader);
 
 	ShaderDescription deferredDiffuseOnlyPassDesc;
-	deferredDiffuseOnlyPassDesc.type = ShaderType::geometry;
+	deferredDiffuseOnlyPassDesc.type = ShaderType::tessellationAndGeometry;
 	deferredDiffuseOnlyPassDesc.vertexSrcPath = "./assets/shaders/diffuseOnlyDRPassVert.glsl";
+	deferredDiffuseOnlyPassDesc.controlSrcPath = "./assets/shaders/floorTSControl.glsl";
+	deferredDiffuseOnlyPassDesc.evaluationSrcPath = "./assets/shaders/floorTSEval.glsl";
 	deferredDiffuseOnlyPassDesc.geometrySrcPath = "./assets/shaders/floorGeo.glsl";
 	deferredDiffuseOnlyPassDesc.fragmentSrcPath = "./assets/shaders/diffuseOnlyDRPassFrag.glsl";
 
 	std::shared_ptr<Shader> deferredDiffuseOnlyPrePassShader = std::make_shared<Shader>(deferredDiffuseOnlyPassDesc);
 
 	m_gPassDiffuseOnly = std::make_shared<Material>(deferredDiffuseOnlyPrePassShader);
-
+	
+	m_gPassDiffuseOnly->setPrimitive(GL_PATCHES);
 	m_shadowMapVariables = shadowMapVars();
 	
 	ShaderDescription shadowPrePassDesc;
@@ -58,11 +61,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	glm::vec3 lightPosition = (m_shadowMapVariables.center - (m_dirLightDirection)) * m_shadowMapVariables.distanceAlongLightVec;
 	glm::mat4 lightSpaceView = glm::lookAt(lightPosition, m_shadowMapVariables.center, m_shadowMapVariables.up);
 
-	
-	
-
-
-
 	// create a descriptor for a particualr shader we want to make deifning the type of shader(int this case rasterization shader that uses both a vertex and fragment shader ) 
 	
 	ShaderDescription phongShaderDesc;
@@ -77,8 +75,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	phongShader = std::make_shared<Shader>(phongShaderDesc);
 
 
-
-	
 	// extracting vertex data from grid 
 	std::shared_ptr<Grid> floorGrid = std::make_shared<Grid>(); 
 	std::vector<float>  floorGridVertecies = floorGrid->getVertices(); 
@@ -110,17 +106,31 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	// creating floor texture
 	std::shared_ptr<Texture> FloorTexture;
-	FloorTexture = std::make_shared<Texture>("./assets/textures/floorTex.png");
+	FloorTexture = std::make_shared<Texture>("./assets/textures/rock_terrain.jpg");
+	std::shared_ptr<Texture> FloorSecondaryTexture;
+	FloorSecondaryTexture = std::make_shared<Texture>("./assets/textures/rock_face.jpg");
 
-
-	
-
+	std::shared_ptr<Texture> heightMap = std::make_shared<Texture>("./assets/textures/heightMap.jpg");
+	std::shared_ptr<Texture> normalMapRock = std::make_shared<Texture>("./assets/textures/rock_face_normal.png");
+	std::shared_ptr<Texture> normalMapTerrain = std::make_shared<Texture>("./assets/textures/rocky_terrain_normal.png");
 	m_gPassDiffuseOnly->setValue("u_albedo", m_floorColour);
 	m_gPassDiffuseOnly->setValue("u_albedoMap", FloorTexture);	// initialsiing the floor actor using the previously defined data 
+	m_gPassDiffuseOnly->setValue("u_secondaryAlbedoMap", FloorSecondaryTexture);	// initialsiing the floor actor using the previously defined data 
+
+	m_gPassDiffuseOnly->setValue("u_heightScalar", m_terrainHeightScalar);
+	m_gPassDiffuseOnly->setValue("u_heightMap", heightMap);
+	m_gPassDiffuseOnly->setValue("u_terrainHeightOffset", m_terrainHeightOffset);
+	m_gPassDiffuseOnly->setValue("u_shouldUseCDM", m_shouldUseCDMNormals);
+	m_gPassDiffuseOnly->setValue("u_heightColActive", m_useTerrainHeightColour);
+	m_gPassDiffuseOnly->setValue("u_perFragNormals", m_perFragNormals);
+	m_gPassDiffuseOnly->setValue("u_normalMap", normalMapTerrain);
+	m_gPassDiffuseOnly->setValue("u_secondNormalMap", normalMapRock);
+
 	Actor FloorActor;
 	FloorActor.geometry = FloorGridVAO;
 	FloorActor.material = m_gPassDiffuseOnly;
-	//FloorActor.depthGeometry = floorVaoDepth;
+	FloorActor.depthGeometry = floorVaoDepth;
+	//FloorActor.depthMaterial = m_shadowPrePassMat;
 	// define the translation 
 	FloorActor.translation = glm::vec3{ -50.0f,-5.0f,-50.0f };
 	FloorActor.recalc(); 
@@ -133,8 +143,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	bilboardShaderDesc.vertexSrcPath = "./assets/shaders/bilboardVert.glsl";
 	bilboardShaderDesc.geometrySrcPath = "./assets/shaders/bilboardGeo.glsl";
 	bilboardShaderDesc.fragmentSrcPath = "./assets/shaders/bilboardFrag.glsl";
-
-
 
 	std::shared_ptr<Shader> bilboardShader = std::make_shared<Shader>(bilboardShaderDesc);
 	std::shared_ptr<Texture> bilboardTexture = std::make_shared<Texture>("./assets/textures/tree.png");
@@ -252,13 +260,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_gPassMat->setValue("u_specularMap", modelSpecularTexture);
 	m_gPassMat->setValue("u_normalMap", modelNormalTexture);
 
-
-
-
-	
-
-
-
 	createActor(glm::vec3(0.0f, -3.0f, -11.0f),ModelVAO, m_gPassMat,modelVaoDepth,m_shadowPrePassMat);
 	createActors(10, -10.0f, 10.0f, ModelVAO, modelVaoDepth, m_gPassMat,m_shadowPrePassMat);
 	ShaderDescription sandingShaderDesc;
@@ -277,8 +278,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	ShaderDescription normalVisShaderDesc;
 	normalVisShaderDesc.type = ShaderType::geometry;
-	normalVisShaderDesc.vertexSrcPath = "./assets/shaders/normalVisualVert.glsl";;
-	normalVisShaderDesc.geometrySrcPath = "./assets/shaders/normalVisualGeo.glsl";;
+	normalVisShaderDesc.vertexSrcPath = "./assets/shaders/normalVisualVert.glsl";
+	normalVisShaderDesc.geometrySrcPath = "./assets/shaders/normalVisualGeo.glsl";
 	normalVisShaderDesc.fragmentSrcPath = "./assets/shaders/normalVisualFrag.glsl";
 
 	std::shared_ptr<Shader> normalVisShader = std::make_shared<Shader>(normalVisShaderDesc);
@@ -406,6 +407,26 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	GammaCorrectionQuad.geometry = ScreenQuadVAO;
 	GammaCorrectionQuad.material = gammaCorrectionMat;
 	m_finalResult->m_actors.push_back(GammaCorrectionQuad);
+
+
+
+	TextureDescription computeTextureDesc; 
+
+	computeTextureDesc.width = 512;
+	computeTextureDesc.height = 512;
+	computeTextureDesc.channels = 4;
+	computeTextureDesc.type = TextureDataType::HDR; 
+
+	std::shared_ptr<Texture> computeTex = std::make_shared<Texture>(computeTextureDesc);
+
+	ShaderDescription computeDesc;
+	computeDesc.type = ShaderType::compute; 
+	computeDesc.computeSrcPath = "./assets/shaders/imageCompute.glsl";
+
+	std::shared_ptr<Shader> imageComputeShader = std::make_shared<Shader>(computeDesc); 
+	std::shared_ptr<Material> imageComputeMat = std::make_shared<Material>(imageComputeShader);
+
+	
 	
 	FBOLayout colAndDepthLayout = {
 	   {AttachmentType::ColourHDR, true, true},
@@ -428,7 +449,24 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	
 	
 
+	// deifning the compute pass
+	//ComputePass imageComputePass;
 
+	//imageComputePass.material = imageComputeMat;
+	//imageComputePass.workgroups = { 32,32,1 };
+	//imageComputePass.barrier = MemoryBarrier::ShaderImageAccess;
+
+
+	//// descirnbing image that can be wrritten to by the compute shader
+	//ImageDescWithTexture computeImageDesc;
+	//computeImageDesc.texture = computeTex;
+	//computeImageDesc.imageUnit = imageComputePass.material->m_shader->m_imageBindingPoints["outputImage"];
+	//computeImageDesc.access = TextureAccess::WriteOnly;
+
+	//imageComputePass.images.push_back(Image(computeImageDesc));
+
+
+	//m_renderer.addComputePass(imageComputePass);
 
 
 	RenderPass deferredPrePass;
@@ -549,7 +587,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	mainPass.setCachedValue("b_lights", "dLight.colour", m_lightPassScene->m_directionalLights.at(0).colour);
 	mainPass.setCachedValue("b_lights", "dLight.direction", m_lightPassScene->m_directionalLights.at(0).direction);
 	//// attaching the camera script to the actor 
-	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(deferredPrePass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(1.6f, 0.6f, 2.f), 0.5f);
+	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(deferredPrePass.scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(5.0f, 5.0f, 5.0f), 1.0f);
 	// add main initial pass with all the actors we want the main lighting to impact
 	addPointLightDataToPass(mainPass,PointLightNum);
 	m_mainPassIdx = m_renderer.getPassCount();
@@ -996,17 +1034,21 @@ void MainLayer::onImGUIRender()
 	// here we create a check box within the frame making it render for this particualr frame and checking that it has been 
 	//created giving it a name  also passing it the boolean for whether or not the option within the check box is defined 
 	if (ImGui::Checkbox("Wireframe ", &m_wireFrame)) {
-		auto& mainPass = m_renderer.getRenderPass(m_mainPassIdx);
+		auto& defferedPass = m_renderer.getRenderPass(m_deferredPrePasIdx);
 		if (m_wireFrame) {
 			// prepass is before we apply the shader 
-			mainPass.prePassActions.clear();
+			defferedPass.prePassActions.clear();
+			defferedPass.postPassActions.clear();
 			// set up the wire frame rendereing for the Pass
-			mainPass.prePassActions.emplace_back([]() {glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);});
+			defferedPass.prePassActions.emplace_back([]() {glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);});
+			defferedPass.postPassActions.emplace_back([]() {glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); });
 		}
 		else {
 			// otherwise we draw the sceene as usual without wireframe applied 
-			mainPass.prePassActions.clear();
-			mainPass.prePassActions.emplace_back([]() {glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);});
+			defferedPass.prePassActions.clear();
+			defferedPass.prePassActions.emplace_back([]() {glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);});
+			
+
 		}
 	} 
 	// creating a colour pciker that manipluates the base colour of the floor object/actor in the scene
@@ -1132,7 +1174,37 @@ void MainLayer::onImGUIRender()
 		  ImGui::EndTabItem();
 	  }
 
+	  if (ImGui::BeginTabItem("Tessellation")) {
 
+
+		  if (ImGui::SliderFloat("terrain height scalar", &m_terrainHeightScalar, 2.0f, 50.0f)) 
+		  {
+			  m_gPassDiffuseOnly->setValue("u_heightScalar", m_terrainHeightScalar);
+		  
+		  }
+
+		  if (ImGui::Checkbox("enable cdm normals ", (bool*)&m_shouldUseCDMNormals)) {
+
+			  m_gPassDiffuseOnly->setValue("u_shouldUseCDM", m_shouldUseCDMNormals);
+		  
+		  }
+		  if (ImGui::Checkbox("enable per fragment normals ", (bool*)&m_perFragNormals)) {
+
+			  m_gPassDiffuseOnly->setValue("u_perFragNormals", m_perFragNormals);
+
+		  }
+
+		  if (ImGui::Checkbox("show terrain height colour ", (bool*)&m_useTerrainHeightColour)) {
+
+			  m_gPassDiffuseOnly->setValue("u_heightColActive", m_useTerrainHeightColour);
+
+		  }
+		
+
+
+		  
+		  ImGui::EndTabItem();
+	  }
 	  ImGui::EndTabBar();
   }
  

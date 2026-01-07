@@ -23,7 +23,7 @@ void main()
 
      g_normal = vec4(normal,1.0);
      
-     vec3 diffuse = texture(u_albedoMap,texCoord).rgb;
+     vec3 diffuse = texture(u_albedoMap ,texCoord).rgb;
      float specular = texture(u_specularMap,texCoord).r;
      
      g_diffSpec = vec4(diffuse,specular);

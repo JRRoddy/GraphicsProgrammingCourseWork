@@ -117,7 +117,7 @@ void main()
    {
       vec3 skyBoxCol = texture(u_skyBoxColBuffer,texCoord).rgb;
 
-	 colour = vec4(skyBoxCol,1.0);
+	  colour = vec4(skyBoxCol,1.0);
 	  return;
    
    }
