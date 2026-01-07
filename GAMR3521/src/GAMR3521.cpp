@@ -122,7 +122,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_gPassDiffuseOnly->setValue("u_terrainHeightOffset", m_terrainHeightOffset);
 	m_gPassDiffuseOnly->setValue("u_shouldUseCDM", m_shouldUseCDMNormals);
 	m_gPassDiffuseOnly->setValue("u_heightColActive", m_useTerrainHeightColour);
-	m_gPassDiffuseOnly->setValue("u_perFragNormals", m_perFragNormals);
 	m_gPassDiffuseOnly->setValue("u_normalMap", normalMapTerrain);
 	m_gPassDiffuseOnly->setValue("u_secondNormalMap", normalMapRock);
 
@@ -410,7 +409,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 
 
-	TextureDescription computeTextureDesc; 
+	/*TextureDescription computeTextureDesc; 
 
 	computeTextureDesc.width = 512;
 	computeTextureDesc.height = 512;
@@ -424,7 +423,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	computeDesc.computeSrcPath = "./assets/shaders/imageCompute.glsl";
 
 	std::shared_ptr<Shader> imageComputeShader = std::make_shared<Shader>(computeDesc); 
-	std::shared_ptr<Material> imageComputeMat = std::make_shared<Material>(imageComputeShader);
+	std::shared_ptr<Material> imageComputeMat = std::make_shared<Material>(imageComputeShader);*/
 
 	
 	
@@ -1188,11 +1187,7 @@ void MainLayer::onImGUIRender()
 			  m_gPassDiffuseOnly->setValue("u_shouldUseCDM", m_shouldUseCDMNormals);
 		  
 		  }
-		  if (ImGui::Checkbox("enable per fragment normals ", (bool*)&m_perFragNormals)) {
 
-			  m_gPassDiffuseOnly->setValue("u_perFragNormals", m_perFragNormals);
-
-		  }
 
 		  if (ImGui::Checkbox("show terrain height colour ", (bool*)&m_useTerrainHeightColour)) {
 

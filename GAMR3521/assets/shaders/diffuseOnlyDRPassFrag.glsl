@@ -19,7 +19,6 @@ uniform sampler2D u_secondaryAlbedoMap;
 uniform sampler2D u_secondNormalMap;
 uniform vec3 u_albedo;
 uniform int u_heightColActive;
-uniform int u_perFragNormals;
 uniform sampler2D u_normalMap; 
 
 void main()
@@ -35,7 +34,6 @@ void main()
   vec3 blendNormal = normalize(vec3(normalNdc.xy + normalNDC1.xy, normalNdc.z));
 
 
-  //vec3 normalFromMap = normalize( TBN * normalNDC);
 
   vec3 fragNormal =  normal;
 
@@ -58,7 +56,7 @@ void main()
   vec4 triBlendTexColour = xPlaneColour * avrgContrib.x  + yPlaneColour * avrgContrib.y + zPlaneColour * avrgContrib.z;
   vec4 xPlaneColour1 = texture2D(u_secondaryAlbedoMap,fragmentPos.yz * 0.1 );
   vec4 yPlaneColour1 = texture2D(u_secondaryAlbedoMap,fragmentPos.xz * 0.1);
-  vec4 zPlaneColour1 = texture2D(u_secondaryAlbedoMap,fragmentPos.xy * 01. );
+  vec4 zPlaneColour1 = texture2D(u_secondaryAlbedoMap,fragmentPos.xy * 0.1 );
   // blend the colours using the avrg contribution along each axis 
   vec4 triBlendTexColour1 = xPlaneColour1 * avrgContrib.x + yPlaneColour1 * avrgContrib.y + zPlaneColour1 * avrgContrib.z;
 
@@ -70,7 +68,7 @@ void main()
   vec3 diffuse = texture(u_albedoMap,texCoord).rgb;
 
   // calcuate surface colour based on height
-  float mid = u_heightScalar * 0.3;
+  float mid = u_heightScalar * 0.5;
 
   
   float offsetNegate = abs(u_terrainHeightOffset) *  ( (float((u_terrainHeightOffset < 0.0))) * 2.0 - 1.0);

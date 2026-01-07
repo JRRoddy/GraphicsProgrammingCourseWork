@@ -136,9 +136,9 @@ private:
 
 	int bilboardNum = 4;
 	float m_bilboardScale = 10.0f;
-	float m_terrainHeightOffset = -15.0f;
+	float m_terrainHeightOffset = -18.0f;
 
-	float m_terrainHeightScalar = 40.0f;
+	float m_terrainHeightScalar = 50.0f;
 	int m_shouldUseCDMNormals = 1;
 	int m_perFragNormals = 0;
 	int m_useTerrainHeightColour = 0;
