@@ -9,7 +9,6 @@ layout (location = 2) out vec4 g_diffSpec;
 in vec3 normal;
 in vec3 fragmentPos;
 in vec2 texCoord;
-in mat3 TBN;
 
 uniform float u_heightScalar;
 uniform float u_terrainHeightOffset;
@@ -17,7 +16,7 @@ uniform float u_terrainHeightOffset;
 uniform sampler2D u_albedoMap;
 uniform sampler2D u_secondaryAlbedoMap;
 uniform sampler2D u_secondNormalMap;
-uniform vec3 u_albedo;
+in mat3 TBN;
 uniform int u_heightColActive;
 uniform sampler2D u_normalMap; 
 
@@ -27,13 +26,10 @@ void main()
 
 
   vec3 normalNdc = texture(u_normalMap,texCoord).rgb * 2.0 - 1.0;
-
-
+   
   vec3 normalNDC1 = texture(u_secondNormalMap,texCoord).rgb * 2.0 - 1.0;
-
+ 
   vec3 blendNormal = normalize(vec3(normalNdc.xy + normalNDC1.xy, normalNdc.z));
-
-
 
   vec3 fragNormal =  normal;
 
@@ -60,22 +56,25 @@ void main()
   // blend the colours using the avrg contribution along each axis 
   vec4 triBlendTexColour1 = xPlaneColour1 * avrgContrib.x + yPlaneColour1 * avrgContrib.y + zPlaneColour1 * avrgContrib.z;
 
+  float mid = u_heightScalar * 0.5;
+  float offsetNegate = abs(u_terrainHeightOffset) *  ( (float((u_terrainHeightOffset < 0.0))) * 2.0 - 1.0);
 
-  
 
   g_position = vec4(fragmentPos,1.0);
   g_normal = vec4(blendNormal,1.0);
   vec3 diffuse = texture(u_albedoMap,texCoord).rgb;
 
   // calcuate surface colour based on height
-  float mid = u_heightScalar * 0.5;
-
+ 
   
-  float offsetNegate = abs(u_terrainHeightOffset) *  ( (float((u_terrainHeightOffset < 0.0))) * 2.0 - 1.0);
-  vec3 heightColour = mix(vec3(triBlendTexColour),vec3(triBlendTexColour1),smoothstep(0.0,mid + mid * 0.5, fragmentPos.y  + offsetNegate));
+  
+  vec3 terrainColour = mix(vec3(triBlendTexColour),vec3(triBlendTexColour1),smoothstep(0.0,mid + mid * 0.5, fragmentPos.y  + offsetNegate));
 
-  vec3 finalColour =  heightColour * u_heightColActive + u_albedo *( 1.0 - u_heightColActive);
-  g_diffSpec = vec4(heightColour ,specular);
+  vec3 col1 = vec3(0.2,0.55,0.2);
+  vec3 col2 = vec3(0.6,0.2,0.1);
+  vec3 heightColour = mix(col1,col2,smoothstep(0.0,mid + mid * 0.5, fragmentPos.y  + offsetNegate));
+  vec3 finalColour =  heightColour * u_heightColActive + terrainColour *( 1.0 - u_heightColActive);
+  g_diffSpec = vec4(finalColour ,specular);
   
   
      

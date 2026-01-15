@@ -48,7 +48,13 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/sandingFrag.glsl"
         "assets/shaders/floorTSControl.glsl"
         "assets/shaders/floorTSEval.glsl"
-        "assets/shaders/imageCompute.glsl"
+        "assets/shaders/computeNormalsCDM.glsl"
+        "assets/shaders/heightMapCompute.glsl"
+        "assets/shaders/computeParticleInit.glsl"
+        "assets/shaders/computeParticleUpdate.glsl"
+        "assets/shaders/particleEmitVert.glsl"
+        "assets/shaders/particleEmitGeo.glsl"
+        "assets/shaders/particleEmitFrag.glsl"
 )
 
 # Application Files

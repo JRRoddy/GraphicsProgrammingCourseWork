@@ -12,7 +12,6 @@ in vec4 fragPosClip;
 in vec3 normal;
 
 
-in vec3 fragmentPos[];
 
 void main()
 {

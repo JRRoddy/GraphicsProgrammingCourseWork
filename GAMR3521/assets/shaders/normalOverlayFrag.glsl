@@ -19,7 +19,8 @@ void main()
   vec4 sampleNormalCol = texture(u_normalSceneCol,texCoord);
   vec3 gammaNegate = pow(sampleNormalCol.rgb,vec3(2.2));
   vec4 normalCol =  vec4(gammaNegate,sampleNormalCol.a);
-  float hasNormalCol =  float((sceneCol  - normalCol) == sceneCol);
+  vec4 difference = sceneCol - normalCol;
+  float hasNormalCol =  float((difference == sceneCol));
 
   normalCol += (sceneCol * hasNormalCol);
   normalOverlayCol = normalCol * isActive + sceneCol * (1.0 - isActive);

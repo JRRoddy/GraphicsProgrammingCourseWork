@@ -1,0 +1,85 @@
+# version 460 core 
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+
+
+
+
+uniform vec3 u_particleOrigin;
+
+
+struct particle
+{ 
+   vec4 origin;
+   vec4 position;
+   vec4 velocity;
+  
+};
+
+layout(std430, binding = 0) buffer particlesBuffer
+{
+
+    particle particles[];
+
+};
+
+float calcAge();
+vec4 calcVelocity();
+vec3 randomDirection(vec2 seed);
+float rand(vec2 seed);
+vec2 randSeed = vec2(gl_GlobalInvocationID.xy);
+void main()
+{
+  uint gridWidth = 32;
+  vec2 res = vec2(gridWidth*16);
+
+  ivec2 gridCoords = ivec2(gl_GlobalInvocationID.xy);
+ 
+  
+   
+  uint gridId = uint(gridCoords.x) * gridWidth + uint(gridCoords.y);
+  particles[gridId].origin.xyz = u_particleOrigin;
+  particles[gridId].position.xyz = u_particleOrigin;
+  particles[gridId].position.w = calcAge();
+  particles[gridId].velocity = calcVelocity();
+   
+
+}
+
+
+vec4 calcVelocity()
+{ 
+
+   return vec4(randomDirection(randSeed),1.0);
+  
+}
+
+
+float calcAge()
+{
+  
+   return 5.0;
+
+}
+
+float rand(vec2 seed)
+{
+    
+    return fract(sin(dot(seed.xy,
+                         vec2(10.9898,90.233)))*
+        43758.5453123);
+}
+
+
+vec3 randomDirection(vec2 seed) {
+
+    float theta = rand(seed) * 2.0 * 3.14159;
+    float phi = acos(2.0 * rand(seed * 2.0) - 1.0);
+    float x = sin(phi) * cos(theta) ;
+    float y = sin(phi) * sin(theta);
+    float z = cos(phi);
+    return vec3(x, y, z);
+}
+
+

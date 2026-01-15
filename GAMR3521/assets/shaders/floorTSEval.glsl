@@ -19,8 +19,8 @@ out vec3 tse_fragmentPos;
 out vec2 tse_texCoord;
 out vec3 tse_normal;
 
+uniform sampler2D u_cdmNormalMap;
 
-uniform sampler2D u_heightMap;
 uniform float u_heightScalar;
 uniform float u_terrainHeightOffset;
 vec2 interpolate2D(vec2 v0, vec2 v1, vec2 v2);
@@ -28,10 +28,11 @@ vec3 interpolate3D(vec3 v0, vec3 v1, vec3 v2);
 
 void main()
 {
-   
+    
+    
     tse_texCoord = interpolate2D(tcs_texCoord[0],tcs_texCoord[1],tcs_texCoord[2]);
-
-    float height = texture(u_heightMap,tse_texCoord).r;
+    vec4 terrainInfo = texture(u_cdmNormalMap,tse_texCoord);
+    float height = terrainInfo.a;
     
     
    
@@ -41,19 +42,21 @@ void main()
 
     // centeral difference method for finding a normal using a singular axis 
     // calcualte the y value at the surrounding pixels in the height map(at each axis offset)
-    float right = (textureOffset(u_heightMap,tse_texCoord,ivec2(1,0)).r) * u_heightScalar;
-    float left  =  (textureOffset(u_heightMap,tse_texCoord,ivec2(-1,0)).r) * u_heightScalar;
-    float up = (textureOffset(u_heightMap,tse_texCoord,ivec2(0,-1)).r) * u_heightScalar;
-    float down = (textureOffset(u_heightMap,tse_texCoord,ivec2(0,1)).r) * u_heightScalar;
+    //float right = (textureOffset(u_heightMap,tse_texCoord,ivec2(1,0)).r) * u_heightScalar;
+    //float left  =  (textureOffset(u_heightMap,tse_texCoord,ivec2(-1,0)).r) * u_heightScalar;
+    //float up = (textureOffset(u_heightMap,tse_texCoord,ivec2(0,-1)).r) * u_heightScalar;
+    //float down = (textureOffset(u_heightMap,tse_texCoord,ivec2(0,1)).r) * u_heightScalar;
 
     // calculate difference between the neighbouring points
-    float lr = left - right;
-    float ud = up - down;
+    //float lr = left - right;
+    //float ud = up - down;
 
 
 
     // approximation of normal using the central difference 
-    tse_normal = normalize(vec3(lr,2.0,ud));
+    // cdm normals are caluclated in a compute shader per pixel once to save on sampling the height map every frame
+    // at different offsets(only to get the same data back every time as the height map is not dynamic)
+    tse_normal = terrainInfo.xyz;
     
 
   

@@ -38,16 +38,18 @@ const int numSpotLights = 1;
 
 
 
+
 uniform sampler2D u_prePassDepthTexture;
 uniform sampler2D u_shadowMap;
 uniform sampler2D u_fragmentId;
 uniform sampler2D u_skyBoxColBuffer;
-uniform int u_shadowSampleRadius;
+int u_shadowSampleRadius  = 1 ;
 uniform int u_antiAliasingOn;
 
 uniform mat4 u_lightSpaceMatrix;
 
-
+uniform sampler2D u_fpd;
+uniform sampler2D u_forwardPassColBuf;
 
 
 
@@ -68,8 +70,7 @@ layout (std140, binding = 0) uniform b_camera
 };
 
 
-uniform float u_farClip;
-uniform float u_nearClip; 
+
 
 
 
@@ -80,7 +81,7 @@ uniform sampler2D u_fragmentPositions;
 vec3 getDirectionalLight();
 vec3 getPointLight(int idx);
 vec3 getSpotLight(int idx);
-float lineariseDepth(float zDepth);
+//float lineariseDepth(float zDepth);
 
 // values sampled from the deffered rendering pass 
 vec3 fragmentPos = texture(u_fragmentPositions,texCoord).rgb;
@@ -106,14 +107,21 @@ void main()
 
    float curDepth = texture(u_prePassDepthTexture,texCoord).r;
    
-   float linearisedDepth = (lineariseDepth(curDepth) - u_nearClip) / (u_farClip - u_nearClip);
+  // float linearisedDepth = (lineariseDepth(curDepth) - u_nearClip) / (u_farClip - u_nearClip);
 
+   float forwardDepth = texture(u_fpd,texCoord).r;
+  // float fowardLinDepth = (lineariseDepth(forwardDepth) - u_nearClip) /  (u_farClip - u_nearClip);
 
+   colour = texture(u_forwardPassColBuf,texCoord);
+	
+   //if( fowardLinDepth < linearisedDepth )
+  // {
+   //    colour = texture(u_forwardPassColBuf,texCoord);
+	//   return;
+      
+  // }
 
-  
-
-
-   if(linearisedDepth >= 0.9999) 
+   if(curDepth >= 0.9999) 
    {
       vec3 skyBoxCol = texture(u_skyBoxColBuffer,texCoord).rgb;
 
@@ -121,7 +129,10 @@ void main()
 	  return;
    
    }
-  
+   
+   
+   
+
  
 
 
@@ -302,17 +313,17 @@ float shadowContribution()
 }
 
 
-float lineariseDepth(float zDepth)
-{
+//float lineariseDepth(float zDepth)
+//{
    
-   float depthClip = zDepth * 2.0 -1.0; 
+ //  float depthClip = zDepth * 2.0 -1.0; 
 
 
 
-   float linearisedDepth = (2.0 * u_nearClip * u_farClip) / ( u_nearClip + u_farClip - depthClip * (u_farClip - u_nearClip)); 
+  // float linearisedDepth = (2.0 * u_nearClip * u_farClip) / ( u_nearClip + u_farClip - depthClip * (u_farClip - u_nearClip)); 
 
-   return linearisedDepth;
-}
+  // return linearisedDepth;
+//}
 
 
 void moonLight(float fragmentId, vec4 lightColour)

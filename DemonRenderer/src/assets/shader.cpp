@@ -50,7 +50,7 @@ Shader::Shader(const ShaderDescription& desc)
 			m_uniformInfoCache[std::string(nameBuffer.data())] = data;
 			m_imageBindingPoints[std::string(nameBuffer.data())] = bindPoint;
 
-		//	spdlog::info("Uniform {} {} {} bind point:{}", std::string(nameBuffer.data()), size, type, bindPoint);
+		   //spdlog::info("Uniform {} {} {} bind point:{}", std::string(nameBuffer.data()), size, type, bindPoint);
 		}
 		else {
 			UniformInfo data;
@@ -58,7 +58,7 @@ Shader::Shader(const ShaderDescription& desc)
 			data.type = type;
 			data.size = size;
 			m_uniformInfoCache[std::string(nameBuffer.data())] = data;
-		//	spdlog::info("Uniform {} {} {}", std::string(nameBuffer.data()), size, type);
+		    //spdlog::info("Uniform {} {} {}", std::string(nameBuffer.data()), size, type);
 		}
 	}
 
@@ -186,6 +186,7 @@ void Shader::compileWithGeometry(const ShaderDescription& desc)
 
 		m_type = desc.type;
 	}
+	
 }
 
 void Shader::compileWithTesselation(const ShaderDescription& desc)
@@ -364,7 +365,7 @@ bool Shader::compileShader(GLuint& shaderUnit, const std::filesystem::path& sour
 
 		std::vector<GLchar> infoLog(maxLength);
 		glGetShaderInfoLog(shaderUnit, maxLength, &maxLength, &infoLog[0]);
-		spdlog::error("Shader compile error: {0}", std::string(infoLog.begin(), infoLog.end()));
+		//spdlog::error("Shader compile error: {0}", std::string(infoLog.begin(), infoLog.end()));
 
 		glDeleteShader(shaderUnit);
 	}

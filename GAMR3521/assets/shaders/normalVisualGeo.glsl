@@ -48,9 +48,9 @@ void main()
      
      vec3 endPos = normalStart + normalCalc * u_normalLength;
    
-     fragPosClip = u_projection * u_view * vec4(endPos,1.0);;
+     fragPosClip = u_projection * u_view * vec4(endPos,1.0);
      gl_Position =  u_projection * u_view * vec4(endPos,1.0);
-  
+     
      EmitVertex();
       
     

@@ -5,6 +5,15 @@
 #include <numeric>
 
 
+struct particle
+{
+	glm::vec4 origin;
+	glm::vec4 position;
+	glm::vec4 velocity;
+
+
+};
+
 struct shadowMapVars {
 	glm::vec3 center = glm::vec3(0.0f,0.0f,0.0f);
 	glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -44,20 +53,29 @@ protected:
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, size_t& outId, std::shared_ptr<Scene>&Scene);
 	void generateBilboards(std::vector<float>& positions, std::shared_ptr<VAO>  vao, std::shared_ptr<Material> material);
 	void addPointLight(glm::vec3 colour, glm::vec3 position, glm::vec3 attenuation = { 1.f, 0.1f, 0.01f });
-
+	void makePosProcessScreenPass(std::shared_ptr<Material> mat, std::shared_ptr<Scene> scene, std::shared_ptr<VAO> screenVAO,FBOLayout frameBufLayout = FBOLayout());
+	void makePosProcessScreenPass(std::shared_ptr<Material> mat, std::shared_ptr<Scene> scene, std::shared_ptr<VAO> screenVAO, size_t & idx, FBOLayout frameBufLayout = FBOLayout());
 	void addPointLights(int PointLightNum);
-
-
+	ShaderDescription makeFragmentShaderDesc(std::filesystem::path vertPath, std::filesystem::path fragPath);
+	void initLightPass(std::shared_ptr<VAO> screenQuad, FBOLayout lightPassLayout);
 	void addPointLightDataToPass(RenderPass& pass, int pointLightNum);
+	void makePaticleEmitter(glm::vec3 origin,std::shared_ptr<Material> particleMat,std::shared_ptr<Scene> scene,std::shared_ptr<Texture> texture, float particleBilBoardScale);
 	void SetUpPostProcessingFlags();
+	void makeForwardParticlePass(FBOLayout layout);
+	void makeComputePasses();
+	void makePaticleComputePasses();
 private:
 
-
+	std::shared_ptr<SSBO> m_initParticleSSBO;
 
 	std::shared_ptr<Scene> m_scene; // Scene where actors reside
+	std::shared_ptr<Scene> m_particleScene;
 	std::shared_ptr<Scene> m_skyboxScene;
 	std::shared_ptr<Scene> m_lightPassScene;
 	std::shared_ptr<Scene> m_postProcessScene; 
+	std::shared_ptr<Scene> m_colourInversionScene;
+	std::shared_ptr<Scene> m_relativeLuminanceTintScene;
+
 	std::shared_ptr<Scene> m_blurScene;
 	std::shared_ptr<Scene> m_edgeDetectionScreenScene;
 	std::shared_ptr<Texture> m_shadowMapTexture;
@@ -69,9 +87,10 @@ private:
 	std::shared_ptr<Scene> m_shadowPrePassVisualScreenScene;
 	std::shared_ptr<Scene> m_normalVisualisationScene;
 	std::shared_ptr<Scene> m_normalOverlayScene;
+	std::shared_ptr<Scene> m_particleOverlayScene;
 	std::shared_ptr<Scene> m_finalResult; 
-
-
+	Renderer m_particleInit;
+	Renderer m_computeRenderer;
 	Renderer m_renderer;			// Renderer to draw the scene
 	size_t m_cameraIdx;				// Actor index of the camera, used to update scene
 	size_t m_FloorIdx;              // Actor id to keep track of the floor within the actor buffer of the scene
@@ -83,7 +102,18 @@ private:
 	size_t m_shadowMapVisualisationIdx;
 	size_t m_normalVisualIdx;
 	size_t m_normalOverlayIdx;
+	size_t m_luminanceSaturationIdx;
+	size_t m_luminanceContrastIdx;
+	size_t m_edgeDetectionIdx;
+	size_t m_blurPassIdx;
+	size_t m_fogPassIdx;
+	size_t m_relativeLumianceTintIdx;
+	size_t m_colourInversionIdx;
+	uint32_t m_particleNum = 20;
+	size_t m_heightMapComputeIdx;
 	size_t m_cubeIdx;
+	size_t m_updatePaticlesIdx;
+	size_t m_forwardParticlePrePassIdx;
 	//post processing materials
 	std::shared_ptr<Material> m_invertColourMat; 
 	std::shared_ptr<Material> m_luminanceMat; 
@@ -100,7 +130,9 @@ private:
 	std::shared_ptr<Material> m_shadowPrePassMat;
 	std::shared_ptr<Material> m_normalVisMat;
 	std::shared_ptr<Material> m_normalOverlayMat;
+	std::shared_ptr<Material> m_terrainHeightMat;
 	std::vector<std::shared_ptr<Material>> m_postProcessingMaterials;
+
 	std::vector<int> m_postProcessingFlags;
 	std::vector<std::string> m_PostProcessingNames;
 	float m_screenWidth; 
@@ -117,9 +149,11 @@ private:
 	float m_normalLength = 0.1f;
 	glm::ivec2 m_shadowMapSize = { 4096, 4096 };
 	int m_shadowMapSampleRadi = 1;
+	float dt = 0.0f;
+	float currentTime = 0.0f;
+	float lastFrameTime = 0.0f;
 	//Gui
 	bool m_wireFrame{ false }; // render in wireframe 
-	glm::vec3 m_floorColour = { 0.0f,0.35f,0.35f };// floor colour manipulated by a colour wheel define using ImGui 
 	glm::vec3 m_tintColour = {1.0f,1.0f,1.0f};
 	glm::vec3 m_fogColour = { 1.0f,1.0f,1.0f };
 	float m_LuminanceSaturationScalar = 0.0f;// used in the stauration shader to define the distacne from the grey scale colour formed by calcualting the lumiance and usingit is a grey scale vec3 
@@ -136,12 +170,28 @@ private:
 
 	int bilboardNum = 4;
 	float m_bilboardScale = 10.0f;
-	float m_terrainHeightOffset = -18.0f;
+	float m_terrainHeightOffset = -20.0f;
 
-	float m_terrainHeightScalar = 50.0f;
+	float m_terrainFreq = 3.526f;
+	float m_terrainAmp = 2.01f;
+	float m_terrainLacrunarity = 2.813f;
+	float m_terrainPersistance = 0.570f;
+	int m_terrainGenOctaves = 4;
+
+	int m_useRidgedNoise = 0;
+	int m_useFBMNoise = 1;
+	int m_useTurbulentNoise = 0;
+	int m_useCombinedNoise = 0;
+
+
+	float m_terrainHeightScalar = 30.0f;
 	int m_shouldUseCDMNormals = 1;
 	int m_perFragNormals = 0;
 	int m_useTerrainHeightColour = 0;
+
+
+	float m_particleAccel = 1.0f;
+
 	std::array<const char*, 6> cubeMapPaths = {
 	"./assets/textures/oGLDevSkybox/sp3right.jpg",
 	"./assets/textures/oGLDevSkybox/sp3left.jpg",
