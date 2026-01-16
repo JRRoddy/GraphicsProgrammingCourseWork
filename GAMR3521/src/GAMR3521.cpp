@@ -452,11 +452,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	glm::vec3 particleOrigin = glm::vec3(-3.0f, -3.0f, -11.0f);
 	makePaticleEmitter(particleOrigin, particleMat, m_particleScene, particleTexture, 0.3f);
 	initParticles.material->setValue("u_particleOrigin", particleOrigin);*/
-
-	makePaticleComputePasses();
-
-	
-
 	ShaderDescription particleShaderDesc;
 	particleShaderDesc.type = ShaderType::geometry;
 	particleShaderDesc.vertexSrcPath = "./assets/shaders/particleEmitVert.glsl";
@@ -465,28 +460,27 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Shader> particleShader = std::make_shared<Shader>(particleShaderDesc);
 	std::shared_ptr<Material> particleMat = std::make_shared<Material>(particleShader);
 	std::shared_ptr<Texture> particleTexture = std::make_shared<Texture>("./assets/textures/spark.png");
+	particleMat->setPrimitive(GL_POINTS);
+	particleMat->setValue("u_particleTexture", particleTexture);
+	particleMat->setValue("u_particleScale", 0.3f);
 	glm::vec3 particleOrigin = glm::vec3(-3.0f, -3.0f, -11.0f);
-	std::vector<float> test = std::vector<float>();
+	std::vector<float> vect = {};
+	std::vector<uint32_t> vert = std::vector<uint32_t>();
+	for (int i = 0; i < m_particleNum; i++)
+	{
+		vert.push_back(i);
+	}
+	
+	std::shared_ptr<VAO> vao = std::make_shared<VAO>(vert);
+
+	
+	createActor(glm::vec3(-5.0f, -5.0f, -11.0f), vao, particleMat);
+
+	makePaticleComputePasses();
 
 	
 
-	std::vector<uint32_t> vert = std::vector<uint32_t>(m_particleNum);
-	std::iota(vert.begin(), vert.end(), 0);
-	std::shared_ptr<VAO> vao = std::make_shared<VAO>(vert);
 
-	Actor Emitter;
-	Emitter.translation = particleOrigin;
-	Emitter.recalc();
-	//Emitter.geometry = vao;
-	Emitter.material = particleMat;
-	Emitter.material->setValue("u_particleTexture", particleTexture);
-	Emitter.material->setValue("u_particleScale", 0.3f);
-
-	m_forwardPassScene->m_actors.push_back(Emitter);
-
-
-
-	//makePaticleEmitter(particleOrigin, particleMat, m_forwardPassScene, particleTexture, vao,0.3f);
 
 	RenderPass deferredPrePass;
 	deferredPrePass.scene = m_scene;
@@ -505,7 +499,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_deferredPrePasIdx = m_renderer.getPassCount();
 	m_renderer.addRenderPass(deferredPrePass);
 
-	RenderPass forwardPass;
+	/*RenderPass forwardPass;
 	forwardPass.scene = m_forwardPassScene;
 	forwardPass.parseScene();
 	forwardPass.target = std::make_shared<FBO>(m_winRef.getSize(), colAndDepthLayout);
@@ -515,7 +509,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	forwardPass.setCachedValue("b_camera", "u_projection", deferredPrePass.camera.projection);
 	forwardPass.setCachedValue("b_camera", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
 	m_forwardPassIdx = m_renderer.getPassCount();
-	m_renderer.addRenderPass(forwardPass);
+	m_renderer.addRenderPass(forwardPass);*/
 
 	DepthPass shadowMapPrePass;
 
@@ -561,24 +555,70 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_renderer.addRenderPass(skyBoxPass);
 
 	
-	initLightPass(ScreenQuadVAO, colAndDepthLayout);
+	m_phongModelMaterial->setValue("u_shadowMap", m_renderer.getDepthPass(m_shadowMapPrepassIdx).target->getTarget(0));
+	m_phongModelMaterial->setValue("u_antiAliasingOn", m_shadowAntiAliasingOn);
+	m_phongModelMaterial->setValue("u_fragmentPositions", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(0));
+	m_phongModelMaterial->setValue("u_normalMap", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(1));
+	m_phongModelMaterial->setValue("u_diffSpecMap", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(2));
+	m_phongModelMaterial->setValue("u_prePassDepthTexture", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(4));
+	m_phongModelMaterial->setValue("u_skyBoxColBuffer", m_renderer.getRenderPass(m_skyBoxPassIdx).target->getTarget(0));
+	m_phongModelMaterial->setValue("u_fragmentId", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(3));
+	//m_phongModelMaterial->setValue("u_forwardDepth", m_renderer.getRenderPass(m_forwardPassIdx).target->getTarget(0));
+	//m_phongModelMaterial->setValue("u_forwardCol", m_renderer.getRenderPass(m_forwardPassIdx).target->getTarget(0));
+
+	//m_phongModelMaterial->setValue("u_fpd", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(0));
+	//m_phongModelMaterial->setValue("u_forwardPassColBuf", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(1));
+	Actor lightPassQuad;
+	lightPassQuad.geometry = ScreenQuadVAO;
+	lightPassQuad.material = m_phongModelMaterial;
+
+	m_lightPassScene->m_actors.push_back(lightPassQuad);
+
+
+
+
+	// initialise a particualr pass for the renderer to perfrom rendering is often sperated inot particualr passes 
+	// as certain operations need to be performed in particualr order 
+	RenderPass mainPass;
+	// assigng the scene for the pass to manipulate 
+	mainPass.scene = m_lightPassScene;
+	// extract all the neccessary information from all the actors we defined in the scene to be used by the shader pass(generally things that define 
+	// the look or surface of the actors like materials)
+	mainPass.parseScene();
+	//mainPass.target = std::make_shared<FBO>();
+	// in process of adding post processing
+	mainPass.target = std::make_shared<FBO>(m_winRef.getSize(), colAndDepthLayout); // Default framebuffer
+
+	// main pass writes to the colour buffer which we extract from in the post processing pass 
+	// and this colour buffer we pass stores the outputs of all the fragement shaders in the colour buffer 
+
+	// define the projection matrix to be use 
+	mainPass.camera.projection = glm::ortho(0.f, m_screenWidth, m_screenHeight, 0.f);
+	mainPass.viewPort = { 0, 0, m_winRef.getWidth(), m_winRef.getHeight() };
+	mainPass.setCachedValue("b_lightPassCamera", "u_lightPassview", mainPass.camera.view);
+	mainPass.setCachedValue("b_lightPassCamera", "u_lightPassProjection", mainPass.camera.projection);
+
+
+
+	mainPass.setCachedValue("b_camera", "u_view", m_renderer.getRenderPass(m_deferredPrePasIdx).camera.view);
+
+	mainPass.setCachedValue("b_camera", "u_projection", glm::perspective(45.f, m_winRef.getWidthf() / m_winRef.getHeightf(), 0.1f, 1000.f));
+
+	mainPass.setCachedValue("b_lights", "u_viewPos", m_scene->m_actors.at(m_cameraIdx).translation);
+	mainPass.setCachedValue("b_lights", "dLight.colour", m_lightPassScene->m_directionalLights.at(0).colour);
+	mainPass.setCachedValue("b_lights", "dLight.direction", m_lightPassScene->m_directionalLights.at(0).direction);
+	//// attaching the camera script to the actor 
+	m_scene->m_actors.at(m_cameraIdx).attachScript<CameraScript>(m_renderer.getRenderPass(m_deferredPrePasIdx).scene->m_actors.at(m_cameraIdx), m_winRef, glm::vec3(5.0f, 5.0f, 5.0f), 1.0f);
+	// add main initial pass with all the actors we want the main lighting to impact
+	addPointLightDataToPass(mainPass, PointLightNum);
+	m_mainPassIdx = m_renderer.getPassCount();
+	m_renderer.addRenderPass(mainPass);
 	
-	ShaderDescription combineForwardAndDefDesc;
-	combineForwardAndDefDesc.type = ShaderType::rasterization;
-	combineForwardAndDefDesc.vertexSrcPath = "./assets/shaders/combineForwardAndDepthVert.glsl";
-	combineForwardAndDefDesc.fragmentSrcPath = "./assets/shaders/combineForwardAndDepthFrag.glsl";
+
+
 
 	
-	std::shared_ptr<Shader> combineForwardAndDefShader = std::make_shared<Shader>(combineForwardAndDefDesc);
-	std::shared_ptr<Material> combineForwardAndDefMat = std::make_shared<Material>(combineForwardAndDefShader);
-	combineForwardAndDefMat->setValue("u_deferredDepth", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(4));
-	combineForwardAndDefMat->setValue("u_forwardCol", m_renderer.getRenderPass(m_forwardPassIdx).target->getTarget(0));
-	combineForwardAndDefMat->setValue("u_deferredCol", m_renderer.getRenderPass(m_mainPassIdx).target->getTarget(0));
-	combineForwardAndDefMat->setValue("u_forwardDepth", m_renderer.getRenderPass(m_forwardPassIdx).target->getTarget(1));
-
 	
-	makePosProcessScreenPass(combineForwardAndDefMat,m_combineFowardAndDefScene,ScreenQuadVAO,m_combineForwardAndDefPassIdx,TypicalLayout);
-
 
 	
 	for (int i = 0; i < m_normalVisualisationScene->m_actors.size(); i++) {
@@ -1424,6 +1464,9 @@ void MainLayer::initLightPass(std::shared_ptr<VAO> screenQuad, FBOLayout lightPa
 	m_phongModelMaterial->setValue("u_prePassDepthTexture", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(4));
 	m_phongModelMaterial->setValue("u_skyBoxColBuffer", m_renderer.getRenderPass(m_skyBoxPassIdx).target->getTarget(0));
 	m_phongModelMaterial->setValue("u_fragmentId", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(3));
+	//m_phongModelMaterial->setValue("u_forwardDepth", m_renderer.getRenderPass(m_forwardPassIdx).target->getTarget(1));
+	//m_phongModelMaterial->setValue("u_forwardCol", m_renderer.getRenderPass(m_forwardPassIdx).target->getTarget(0));
+
 	//m_phongModelMaterial->setValue("u_fpd", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(0));
 	//m_phongModelMaterial->setValue("u_forwardPassColBuf", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(1));
 	Actor lightPassQuad;
@@ -1639,7 +1682,7 @@ void MainLayer::makePaticleComputePasses()
 	std::shared_ptr<Shader> particleInitShader = std::make_shared<Shader>(particleInitShaderDesc);
 
 	std::shared_ptr<Material> particleInitMat = std::make_shared<Material>(particleInitShader);
-
+	particleInitMat->setValue("u_particleOrigin", glm::vec3(-3.0f, -3.0f, -11.0f));
 
 	ComputePass initParticles;
 	initParticles.barrier = MemoryBarrier::ShaderStorageAccess;

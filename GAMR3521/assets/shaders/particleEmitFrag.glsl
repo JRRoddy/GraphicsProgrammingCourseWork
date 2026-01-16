@@ -77,7 +77,7 @@ void main()
  vec3 end  = vec3(1.0,1.0,0.0);
  vec3 particleColour = mix(start,end,alpha);
 
- particleColour *= alpha;
+ //particleColour *= alpha;
   
  
 

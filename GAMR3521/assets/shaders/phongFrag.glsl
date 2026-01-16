@@ -42,14 +42,15 @@ const int numSpotLights = 1;
 uniform sampler2D u_prePassDepthTexture;
 uniform sampler2D u_shadowMap;
 uniform sampler2D u_fragmentId;
+uniform sampler2D u_forwardDepth;
+uniform sampler2D u_forwardCol;
 uniform sampler2D u_skyBoxColBuffer;
 int u_shadowSampleRadius  = 1 ;
 uniform int u_antiAliasingOn;
 
 uniform mat4 u_lightSpaceMatrix;
 
-uniform sampler2D u_fpd;
-uniform sampler2D u_forwardPassColBuf;
+
 
 
 
@@ -77,6 +78,7 @@ layout (std140, binding = 0) uniform b_camera
 uniform sampler2D u_normalMap;
 uniform sampler2D u_diffSpecMap;
 uniform sampler2D u_fragmentPositions;
+
 // forward declare
 vec3 getDirectionalLight();
 vec3 getPointLight(int idx);
@@ -101,23 +103,12 @@ void moonLight(float fragmentId, vec4 lightColour);
 
 void main()
 {
-
+ 
+   vec4 forwardDepth = texture(u_forwardDepth,texCoord);
+   vec4 forwardCol = texture(u_forwardCol,texCoord);
 
    float curDepth = texture(u_prePassDepthTexture,texCoord).r;
-   
-  // float linearisedDepth = (lineariseDepth(curDepth) - u_nearClip) / (u_farClip - u_nearClip);
 
-   float forwardDepth = texture(u_fpd,texCoord).r;
-  // float fowardLinDepth = (lineariseDepth(forwardDepth) - u_nearClip) /  (u_farClip - u_nearClip);
-
-   colour = texture(u_forwardPassColBuf,texCoord);
-	
-   //if( fowardLinDepth < linearisedDepth )
-  // {
-   //    colour = texture(u_forwardPassColBuf,texCoord);
-	//   return;
-      
-  // }
 
    if(curDepth >= 0.9999) 
    {
