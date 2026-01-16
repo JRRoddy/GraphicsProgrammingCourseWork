@@ -55,6 +55,9 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/particleEmitVert.glsl"
         "assets/shaders/particleEmitGeo.glsl"
         "assets/shaders/particleEmitFrag.glsl"
+        "assets/shaders/combineForwardAndDepthVert.glsl"
+        "assets/shaders/combineForwardAndDepthFrag.glsl"
+
 )
 
 # Application Files

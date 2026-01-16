@@ -19,7 +19,6 @@ void main()
 {
   
     
-  
     float depthSample = texture(u_depthBufferTexture, screenTexCoords).r; 
     // linearise the depth value(z value) we get from performing projection and perspective divide 
     float depthLin = lineariseDepth(depthSample);

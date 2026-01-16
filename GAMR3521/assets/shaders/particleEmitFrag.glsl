@@ -1,9 +1,9 @@
 #version 460 core 
 
 out vec4 colour;
-//layout(location = 0) out vec4 g_position;
-//layout(location = 1) out vec4 g_normal;
-//layout(location = 2) out vec4 g_diffSpec;
+layout(location = 0) out vec4 g_position;
+layout(location = 1) out vec4 g_normal;
+layout(location = 2) out vec4 g_diffSpec;
 
 uniform sampler2D u_particleTexture;
 
@@ -83,13 +83,13 @@ void main()
 
   
 
- //g_position = vec4(fragPos,1.0);
- //g_normal = vec4(normal,1.0);
- //g_diffSpec = vec4(particleColour,alpha);  
+ g_position = vec4(fragPos,1.0);
+ g_normal = vec4(normal,1.0);
+ g_diffSpec = vec4(particleColour,alpha);  
 
- vec3 lightColour = particleColour.rgb * dirLight();
+// vec3 lightColour = particleColour.rgb * dirLight();
 
- colour = vec4(lightColour, alpha);
+// colour = vec4(lightColour, alpha);
 
  
  

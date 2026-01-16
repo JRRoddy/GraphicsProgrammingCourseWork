@@ -89,12 +89,14 @@ private:
 	std::shared_ptr<Scene> m_normalOverlayScene;
 	std::shared_ptr<Scene> m_particleOverlayScene;
 	std::shared_ptr<Scene> m_finalResult; 
+	std::shared_ptr<Scene> m_combineFowardAndDefScene;
 	Renderer m_particleInit;
 	Renderer m_computeRenderer;
 	Renderer m_renderer;			// Renderer to draw the scene
 	size_t m_cameraIdx;				// Actor index of the camera, used to update scene
 	size_t m_FloorIdx;              // Actor id to keep track of the floor within the actor buffer of the scene
 	size_t m_skyBoxIdx;
+	size_t m_combineForwardAndDefPassIdx;
 	size_t m_linDepthPassIdx;
 	size_t m_mainPassIdx;
 	size_t m_deferredPrePasIdx;
@@ -113,6 +115,7 @@ private:
 	size_t m_heightMapComputeIdx;
 	size_t m_cubeIdx;
 	size_t m_updatePaticlesIdx;
+	size_t m_skyBoxPassIdx;
 	size_t m_forwardParticlePrePassIdx;
 	//post processing materials
 	std::shared_ptr<Material> m_invertColourMat; 

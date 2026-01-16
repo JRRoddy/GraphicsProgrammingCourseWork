@@ -99,8 +99,6 @@ void moonLight(float fragmentId, vec4 lightColour);
 
 
 
-
-
 void main()
 {
 
