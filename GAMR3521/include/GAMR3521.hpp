@@ -59,7 +59,7 @@ protected:
 	ShaderDescription makeFragmentShaderDesc(std::filesystem::path vertPath, std::filesystem::path fragPath);
 	void initLightPass(std::shared_ptr<VAO> screenQuad, FBOLayout lightPassLayout);
 	void addPointLightDataToPass(RenderPass& pass, int pointLightNum);
-	void makePaticleEmitter(glm::vec3 origin,std::shared_ptr<Material> particleMat,std::shared_ptr<Scene> scene,std::shared_ptr<Texture> texture, float particleBilBoardScale);
+	void makePaticleEmitter(glm::vec3 origin,std::shared_ptr<Material> particleMat,std::shared_ptr<Scene> scene,std::shared_ptr<Texture> texture, std::shared_ptr<VAO> vao,float particleBilBoardScale);
 	void SetUpPostProcessingFlags();
 	void makeForwardParticlePass(FBOLayout layout);
 	void makeComputePasses();
@@ -69,7 +69,7 @@ private:
 	std::shared_ptr<SSBO> m_initParticleSSBO;
 
 	std::shared_ptr<Scene> m_scene; // Scene where actors reside
-	std::shared_ptr<Scene> m_particleScene;
+	std::shared_ptr<Scene> m_forwardPassScene;
 	std::shared_ptr<Scene> m_skyboxScene;
 	std::shared_ptr<Scene> m_lightPassScene;
 	std::shared_ptr<Scene> m_postProcessScene; 
@@ -116,7 +116,7 @@ private:
 	size_t m_cubeIdx;
 	size_t m_updatePaticlesIdx;
 	size_t m_skyBoxPassIdx;
-	size_t m_forwardParticlePrePassIdx;
+	size_t m_forwardPassIdx;
 	//post processing materials
 	std::shared_ptr<Material> m_invertColourMat; 
 	std::shared_ptr<Material> m_luminanceMat; 

@@ -4,7 +4,7 @@
 
 layout(local_size_x  = 16, local_size_y = 16) in;
 
-layout(binding  = 0,rgba16f) uniform image2D outputImg; 
+layout(binding  = 0,rgba16f) uniform image2D outputImage; 
 
 
 vec2 hash2(vec2 p);
@@ -26,7 +26,7 @@ uniform int u_octaves;
 void main()
 {
     ivec2 pixelCoords = ivec2(gl_GlobalInvocationID.xy);
-	vec2 uv =  vec2(pixelCoords) / imageSize(outputImg);
+	vec2 uv =  vec2(pixelCoords) / imageSize(outputImage);
 
 
 	
@@ -59,7 +59,7 @@ void main()
       heightPacked = vec4(combo);	
 	}
 	
-	imageStore(outputImg,pixelCoords,heightPacked);
+	imageStore(outputImage,pixelCoords,heightPacked);
 
 	
    
