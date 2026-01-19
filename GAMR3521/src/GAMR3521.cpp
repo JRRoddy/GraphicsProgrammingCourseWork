@@ -1596,6 +1596,7 @@ void MainLayer::makeComputePasses()
 	computeTextureDesc.width = 512;
 	computeTextureDesc.height = 512;
 	computeTextureDesc.channels = 4;
+	// ensure sampling is always limited to the bounds of the texture
 	computeTextureDesc.wrapMethod = GL_CLAMP_TO_EDGE;
 	computeTextureDesc.type = TextureDataType::HDR;
 	std::shared_ptr<Texture> computeTex = std::make_shared<Texture>(computeTextureDesc);
