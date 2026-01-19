@@ -33,10 +33,11 @@ void main()
     tse_texCoord = interpolate2D(tcs_texCoord[0],tcs_texCoord[1],tcs_texCoord[2]);
     vec4 terrainInfo = texture(u_cdmNormalMap,tse_texCoord);
     float height = terrainInfo.a;
-    
-    
    
+    float terrainHeightOffset = u_terrainHeightOffset;
+  
     tse_fragmentPos = interpolate3D(tcs_fragmentPos[0],tcs_fragmentPos[1],tcs_fragmentPos[2]);
+
     tse_fragmentPos.y =  (u_heightScalar * height) + u_terrainHeightOffset;
 
 
@@ -49,7 +50,7 @@ void main()
 
     // calculate difference between the neighbouring points
     //float lr = left - right;
-    //float ud = up - down;
+    //float ud = up - down; 
 
 
 

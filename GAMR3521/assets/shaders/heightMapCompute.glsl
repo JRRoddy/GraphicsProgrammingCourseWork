@@ -23,19 +23,29 @@ uniform int u_useRidgedNoise;
 uniform int u_turbulentNoise;
 uniform int u_combination;
 uniform int u_octaves;
+uniform vec2 u_heightMapSize;
+float shouldSmooth = 0.0;
 void main()
 {
     ivec2 pixelCoords = ivec2(gl_GlobalInvocationID.xy);
-	vec2 uv =  vec2(pixelCoords) / imageSize(outputImage);
+	vec2 uv =  vec2(pixelCoords) / vec2(imageSize(outputImage));
 
-
+	
+     
+	 
+	shouldSmooth =  float((uv.x <= 0.0 || uv.x >= 1.0 || uv.y <= 0.0|| uv.y >= 1.0));
+   
+    
+   
 	
 	vec4 heightPacked ;
 	
 	if(u_FBM == 1)
 	{
 	  float fractal = FBM(uv);
-	  fractal = remap(fractal,-1, 1, 0, 1);
+	  fractal = remap(fractal,-1, 1, 0, 1); 
+
+
 	  heightPacked = vec4(fractal);
 	
 	}
@@ -70,17 +80,24 @@ void main()
 
 float FBM(vec2 position)
 {
-
+    float edgeScalar = 0.25;
     float total = 0.0f; 
 	float totalAmplitude = 0.0f;
-	float amplitude = u_amplitude; 
+
+	float trueAmp =  u_amplitude;
+	float amplitude = trueAmp;
+
+
 	float frequency = u_frequency;
 	float lacrunarity = u_lacrunarity;
 	float persistance = u_persistance;
 	
 	for (int  i = 0; i < u_octaves;i++)
 	{
-	   total += noise(position * frequency) * amplitude;
+	   
+	   float noiseValue = (noise(position * frequency));
+
+	   total += noiseValue * amplitude;
 	   
 	   frequency *= lacrunarity;
 	   amplitude *= persistance;
@@ -89,7 +106,9 @@ float FBM(vec2 position)
 	}
 
 
-	return (total * u_amplitude / totalAmplitude);
+
+
+	return (total * trueAmp / totalAmplitude);
 	 
     
 

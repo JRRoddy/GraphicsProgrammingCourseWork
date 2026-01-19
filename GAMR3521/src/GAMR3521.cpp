@@ -1596,6 +1596,7 @@ void MainLayer::makeComputePasses()
 	computeTextureDesc.width = 512;
 	computeTextureDesc.height = 512;
 	computeTextureDesc.channels = 4;
+	computeTextureDesc.wrapMethod = GL_CLAMP_TO_EDGE;
 	computeTextureDesc.type = TextureDataType::HDR;
 	std::shared_ptr<Texture> computeTex = std::make_shared<Texture>(computeTextureDesc);
 
@@ -1614,7 +1615,7 @@ void MainLayer::makeComputePasses()
 	m_terrainHeightMat->setValue("u_frequency", m_terrainFreq);
 	m_terrainHeightMat->setValue("u_amplitude", m_terrainAmp);
 	m_terrainHeightMat->setValue("u_octaves", m_terrainGenOctaves);
-
+	m_terrainHeightMat->setValue("u_heightMapSize", glm::vec2(0.0f, 0.0f));
 	m_terrainHeightMat->setValue("u_useRidgedNoise", m_useRidgedNoise);
 	m_terrainHeightMat->setValue("u_FBM", m_useFBMNoise);
 	m_terrainHeightMat->setValue("u_turbulentNoise", m_useTurbulentNoise);
@@ -1624,6 +1625,7 @@ void MainLayer::makeComputePasses()
 	heightMapCompute.workgroups = { 32,32,1 };
 
 	std::shared_ptr<Texture> heightMapTex = std::make_shared<Texture>(computeTextureDesc);
+
 
 	ImageDescWithTexture computeHeightMapDesc;
 	computeHeightMapDesc.texture = heightMapTex;

@@ -14,14 +14,19 @@ void main()
    ivec2 pixelCoords = ivec2(gl_GlobalInvocationID.xy);  
    vec2 heightMapSize = textureSize(u_heightMap,0);
 
-   vec2 uv = pixelCoords / heightMapSize;
-   
-  
+   vec2 uv = vec2(pixelCoords) / heightMapSize;
    float height = texture(u_heightMap,uv).r;
-   float right = (textureOffset(u_heightMap, uv, ivec2(1,0)).r) * u_heightScalar;
-   float left = (textureOffset(u_heightMap, uv, ivec2(-1,0)).r) * u_heightScalar;
-   float up = (textureOffset(u_heightMap, uv, ivec2(0,-1)).r)   * u_heightScalar;
-   float down = (textureOffset(u_heightMap, uv, ivec2(0,1)).r)  * u_heightScalar;
+
+   float right = (textureOffset(u_heightMap, uv, ivec2(1,0)).r);
+   float left = (textureOffset(u_heightMap, uv, ivec2(-1,0)).r);
+   float up = (textureOffset(u_heightMap, uv, ivec2(0,-1)).r);  
+   float down = (textureOffset(u_heightMap, uv, ivec2(0,1)).r); 
+
+   
+   right *= u_heightScalar;
+   left  *= u_heightScalar;
+   up *= u_heightScalar;
+   down *= u_heightScalar;
   
    float lr  = left - right;
    float ud = up - down; 
@@ -29,8 +34,6 @@ void main()
 
    vec3 normal = normalize(vec3(lr,2.0,ud));
    vec4 pixelColour = vec4(normal,height) ;
-   
-
    
    imageStore(outputImg,pixelCoords,pixelColour);
 
