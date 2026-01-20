@@ -63,7 +63,7 @@ protected:
 	void SetUpPostProcessingFlags();
 	void makeForwardParticlePass(FBOLayout layout);
 	void makeComputePasses();
-	void makePaticleComputePasses();
+	void makePaticleComputePasses(glm::vec3 origin);
 private:
 
 	std::shared_ptr<SSBO> m_initParticleSSBO;
@@ -111,7 +111,7 @@ private:
 	size_t m_fogPassIdx;
 	size_t m_relativeLumianceTintIdx;
 	size_t m_colourInversionIdx;
-	uint32_t m_particleNum = 20;
+	uint32_t m_particleNum = 80;
 	size_t m_heightMapComputeIdx;
 	size_t m_cubeIdx;
 	size_t m_updatePaticlesIdx;
@@ -193,7 +193,7 @@ private:
 	int m_useTerrainHeightColour = 0;
 
 
-	float m_particleAccel = 1.0f;
+	float m_particleAccel = 0.8f;
 
 	std::array<const char*, 6> cubeMapPaths = {
 	"./assets/textures/oGLDevSkybox/sp3right.jpg",

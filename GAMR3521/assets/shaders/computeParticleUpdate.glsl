@@ -13,10 +13,10 @@ struct particle
 
 
 };
-
+float maxRadius  = 3.0f;
 uniform float dt;
 uniform float u_particleAcceleration;
-
+float maxAge = 2.0;
 layout(std430,binding = 0) buffer particlesBuffer
 {
 
@@ -41,17 +41,16 @@ void updateParticle()
    ivec2 gridCoords = ivec2(gl_GlobalInvocationID.xy);
    uint gridWidth = 32;
    uint id = uint(gridCoords.x) * gridWidth + uint(gridCoords.y);
-   particles[id].position.xyz += particles[id].velocity.xyz *  (u_particleAcceleration* dt) ;
-   //+ 0.5 * u_particleAcceleration * dt * dt; 
-   //particles[id].velocity += u_particleAcceleration * dt;
-   
-   particles[id].position.w -= dt ;
+   float accel = particles[id].velocity.w;
+   particles[id].position.xyz += particles[id].velocity.xyz *(accel *dt);
+
+   particles[id].position.w -= (dt*0.8) ;
    if(particles[id].position.w <= 0.0)
    {
        
+       particles[id].position.w = particles[id].origin.w;
+
        particles[id].position.xyz = particles[id].origin.xyz;
-       particles[id].position.w = 5.0;
-      
    }
 }
 

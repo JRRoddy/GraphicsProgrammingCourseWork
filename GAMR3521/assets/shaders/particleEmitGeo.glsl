@@ -21,15 +21,18 @@ out vec3 fragPos;
 out vec2 texCoord;
 out vec3 normal;
 out float particleAge;
-
+out vec3 particleOrigin;
+out vec3 particlePos;
 in float vs_particleAge[];
+in vec3 vs_particleOrigin[];
 
 void main()
 {
 
    particleAge = vs_particleAge[0];
+   particleOrigin = vs_particleOrigin[0];
    vec3 up  = vec3(0,1,0);
-   vec3 particlePos = gl_in[0].gl_Position.xyz;
+   particlePos = gl_in[0].gl_Position.xyz;
    vec3 forward = normalize(u_viewPos - particlePos); 
    vec3 right = normalize(cross(forward,up)) * u_particleScale;
    up *= u_particleScale;

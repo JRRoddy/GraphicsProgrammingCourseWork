@@ -2,13 +2,17 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-
+#define PI 3.1415926538
 
 
 
 uniform vec3 u_particleOrigin;
-
-
+float maxFlameWidth = 0.5;
+float minFlameWidth = -0.5;
+float maxAge = 1.5;
+float minAge = 1.0;
+float maxAccel = 0.8;
+float minAccel = 0.5;
 struct particle
 { 
    vec4 origin;
@@ -24,9 +28,15 @@ layout(std430, binding = 0) buffer particlesBuffer
 
 };
 
+
 float calcAge();
+float calcAccel();
 vec4 calcVelocity();
 vec3 randomDirection(vec2 seed);
+vec3 randomDirectionXY(vec2 seed);
+
+
+
 float rand(vec2 seed);
 vec2 randSeed = vec2(gl_GlobalInvocationID.xy);
 void main()
@@ -35,15 +45,17 @@ void main()
   vec2 res = vec2(gridWidth*16);
 
   ivec2 gridCoords = ivec2(gl_GlobalInvocationID.xy);
- 
-  
-   
   uint gridId = uint(gridCoords.x) * gridWidth + uint(gridCoords.y);
+
+  float angle =  rand(randSeed) * (2*PI);
+  particles[gridId].position.w = calcAge();
+  vec3 vel = randomDirectionXY(randSeed);
+   
   particles[gridId].origin.xyz = u_particleOrigin;
   particles[gridId].position.xyz = u_particleOrigin;
-  particles[gridId].position.w = calcAge();
-  particles[gridId].velocity = calcVelocity();
-   
+  particles[gridId].origin.w = particles[gridId].position.w;
+  particles[gridId].velocity = vec4(vel,calcAccel());
+  
 
 }
 
@@ -59,7 +71,15 @@ vec4 calcVelocity()
 float calcAge()
 {
   
-   return 5.0;
+   return minAge + (maxAge - minAge) * rand(randSeed*2.0);
+
+}
+
+
+float calcAccel()
+{
+  
+   return minAccel + (maxAccel - minAccel) * rand(randSeed*3.0);
 
 }
 
@@ -82,4 +102,12 @@ vec3 randomDirection(vec2 seed) {
     return vec3(x, y, z);
 }
 
+vec3 randomDirectionXY(vec2 seed) {
 
+    float theta = rand(seed) * 2.0 * 3.14159;
+    float phi = acos(2.0 * rand(seed * 2.0) - 1.0);
+    float x = minFlameWidth + (maxFlameWidth - minFlameWidth) * rand(seed);  ;
+    float y = 1.0;
+    float z = 0;
+    return vec3(x, y, z);
+}

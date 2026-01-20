@@ -55,9 +55,10 @@ layout (std140, binding = 0) uniform b_camera
 
 
 
-
+float maxDist = 1.1;
 in float particleAge;
-
+in vec3 particleOrigin;
+in vec3 particlePos;
 vec4 particleCol = texture(u_particleTexture,texCoord);
 
 vec3 dirLight();
@@ -65,16 +66,19 @@ vec3 dirLight();
 void main()
 {
   
+  
  
   
- float alpha = smoothstep(0.0,5.0,particleAge);
+
  if(particleCol.a <= 0.8)
  {
      discard;
    
  } 
- vec3 start  = vec3(1.0,0.0,0.0);
- vec3 end  = vec3(1.0,1.0,0.0);
+ float dist =  distance(particlePos,particleOrigin);
+ float alpha = smoothstep(0.0,maxDist, dist);
+ vec3 end  = vec3(0.3,0.0,0.0);
+ vec3 start  = vec3(1.0,1.0,0.0);
  vec3 particleColour = mix(start,end,alpha);
 
  //particleColour *= alpha;

@@ -405,53 +405,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	};
 
 
-	/*uint32_t particleBuffSize = (sizeof(particle) * m_particleNum);
-	m_initParticleSSBO = std::make_shared<SSBO>(particleBuffSize, m_particleNum);
-	m_initParticleSSBO->bind(0);
-
-	ShaderDescription particleInitShaderDesc;
-	particleInitShaderDesc.type = ShaderType::compute;
-	particleInitShaderDesc.computeSrcPath = "./assets/shaders/computeParticleInit.glsl";
-	std::shared_ptr<Shader> particleInitShader = std::make_shared<Shader>(particleInitShaderDesc);
-
-	std::shared_ptr<Material> particleInitMat = std::make_shared<Material>(particleInitShader);
-
-
-	ComputePass initParticles;
-	initParticles.barrier = MemoryBarrier::ShaderStorageAccess;
-	initParticles.material = particleInitMat;
-	initParticles.ssbo = m_initParticleSSBO;
-
-	initParticles.workgroups = { 32,32,1 };
-
-	m_particleInit.addComputePass(initParticles);
-	ShaderDescription particleUpdateShaderDesc;
-	particleUpdateShaderDesc.type = ShaderType::compute;
-	particleUpdateShaderDesc.computeSrcPath = "./assets/shaders/computeParticleUpdate.glsl";
-	std::shared_ptr<Shader> particleUpdateShader = std::make_shared<Shader>(particleUpdateShaderDesc);
-
-	std::shared_ptr<Material> particleUpdateMat = std::make_shared<Material>(particleUpdateShader);
-	particleUpdateMat->setValue("u_particleAcceleration", m_particleAccel);
-	ComputePass updateParticles;
-	updateParticles.barrier = MemoryBarrier::ShaderStorageAccess;
-	updateParticles.material = particleUpdateMat;
-	updateParticles.ssbo = m_initParticleSSBO;
-	updateParticles.workgroups = { 32,32,1 };
-
-	m_updatePaticlesIdx = m_computeRenderer.getPassCount();
-	m_computeRenderer.addComputePass(updateParticles);
-	ShaderDescription particleShaderDesc;
-	particleShaderDesc.type = ShaderType::geometry;
-	particleShaderDesc.vertexSrcPath = "./assets/shaders/particleEmitVert.glsl";
-	particleShaderDesc.geometrySrcPath = "./assets/shaders/particleEmitGeo.glsl";
-	particleShaderDesc.fragmentSrcPath = "./assets/shaders/particleEmitFrag.glsl";
-	std::shared_ptr<Shader> particleShader = std::make_shared<Shader>(particleShaderDesc);
-	std::shared_ptr<Material> particleMat = std::make_shared<Material>(particleShader);
-	particleMat->setPrimitive(GL_POINTS);
-	std::shared_ptr<Texture> particleTexture = std::make_shared<Texture>("./assets/textures/spark.png");
-	glm::vec3 particleOrigin = glm::vec3(-3.0f, -3.0f, -11.0f);
-	makePaticleEmitter(particleOrigin, particleMat, m_particleScene, particleTexture, 0.3f);
-	initParticles.material->setValue("u_particleOrigin", particleOrigin);*/
+	
 	ShaderDescription particleShaderDesc;
 	particleShaderDesc.type = ShaderType::geometry;
 	particleShaderDesc.vertexSrcPath = "./assets/shaders/particleEmitVert.glsl";
@@ -462,8 +416,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Texture> particleTexture = std::make_shared<Texture>("./assets/textures/spark.png");
 	particleMat->setPrimitive(GL_POINTS);
 	particleMat->setValue("u_particleTexture", particleTexture);
-	particleMat->setValue("u_particleScale", 0.3f);
-	glm::vec3 particleOrigin = glm::vec3(-3.0f, -3.0f, -11.0f);
+	particleMat->setValue("u_particleScale", 0.1f);
+	glm::vec3 particleOrigin = glm::vec3(-0.0f, -3.5f, -13.0f);
 	std::vector<float> vect = {};
 	std::vector<uint32_t> vert = std::vector<uint32_t>();
 	for (int i = 0; i < m_particleNum; i++)
@@ -474,9 +428,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<VAO> vao = std::make_shared<VAO>(vert);
 
 	
-	createActor(glm::vec3(-5.0f, -5.0f, -11.0f), vao, particleMat);
+	createActor(particleOrigin, vao, particleMat);
 
-	makePaticleComputePasses();
+	makePaticleComputePasses(particleOrigin);
 
 	
 
@@ -534,10 +488,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_shadowMapPrepassIdx = m_renderer.getPassCount();
 	m_renderer.addDepthPass(shadowMapPrePass);
 	
-	/*m_phongModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPrePass.camera.projection * shadowMapPrePass.camera.view);
-	m_floorModelMaterial->setValue("u_lightSpaceMatrix", shadowMapPrePass.camera.projection * shadowMapPrePass.camera.view);
-	*/
-
 
 
 	RenderPass skyBoxPass;
@@ -1672,7 +1622,7 @@ void MainLayer::makeComputePasses()
 
 }
 
-void MainLayer::makePaticleComputePasses()
+void MainLayer::makePaticleComputePasses(glm::vec3 origin)
 {
 
 	uint32_t particleBuffSize = (sizeof(particle) * m_particleNum);
@@ -1685,7 +1635,7 @@ void MainLayer::makePaticleComputePasses()
 	std::shared_ptr<Shader> particleInitShader = std::make_shared<Shader>(particleInitShaderDesc);
 
 	std::shared_ptr<Material> particleInitMat = std::make_shared<Material>(particleInitShader);
-	particleInitMat->setValue("u_particleOrigin", glm::vec3(-3.0f, -3.0f, -11.0f));
+	particleInitMat->setValue("u_particleOrigin", origin);
 
 	ComputePass initParticles;
 	initParticles.barrier = MemoryBarrier::ShaderStorageAccess;
