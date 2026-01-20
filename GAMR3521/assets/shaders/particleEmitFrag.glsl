@@ -77,7 +77,7 @@ void main()
  } 
  float dist =  distance(particlePos,particleOrigin);
  float alpha = smoothstep(0.0,maxDist, dist);
- vec3 end  = vec3(0.3,0.0,0.0);
+ vec3 end  = vec3(0.8,0.0,0.0);
  vec3 start  = vec3(1.0,1.0,0.0);
  vec3 particleColour = mix(start,end,alpha);
 
