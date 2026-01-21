@@ -318,17 +318,17 @@ float shadowContribution()
 void moonLight(float fragmentId, vec4 lightColour)
 {
 
-   if(fragmentId == 1.0)
-   {
+  // if(fragmentId == 1.0)
+  // {
      
 
-	  vec3 relLumScalars = vec3(0.299,0.587,0.114);
-	  float relLum = dot(albedoColour,relLumScalars);
-	  colour = vec4(mix(albedoColour,(albedoColour + lightColour.rgb),relLum),1.0);
+	//  vec3 relLumScalars = vec3(0.299,0.587,0.114);
+	//  float relLum = dot(albedoColour,relLumScalars);
+	//  colour = vec4(mix(albedoColour,(albedoColour + lightColour.rgb),relLum),1.0);
       
    
    
-   }
+ //  }
    
 
 

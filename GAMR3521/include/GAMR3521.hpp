@@ -49,6 +49,8 @@ protected:
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat , std::shared_ptr<VAO> depthVao, std::shared_ptr<Material> depthMat);
 
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat);
+	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat,std::shared_ptr<VAO> depthVao,std::shared_ptr<Material> depthMat,glm::vec3 scale,std::shared_ptr<Scene> scene);
+
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, size_t & outId);
 	void createActor(glm::vec3 initialPos, std::shared_ptr<VAO> Vao, std::shared_ptr<Material> mat, size_t& outId, std::shared_ptr<Scene>&Scene);
 	void generateBilboards(std::vector<float>& positions, std::shared_ptr<VAO>  vao, std::shared_ptr<Material> material);
@@ -72,6 +74,7 @@ private:
 	std::shared_ptr<Scene> m_forwardPassScene;
 	std::shared_ptr<Scene> m_skyboxScene;
 	std::shared_ptr<Scene> m_lightPassScene;
+	std::shared_ptr<Scene> m_PBRlightPassScene;
 	std::shared_ptr<Scene> m_postProcessScene; 
 	std::shared_ptr<Scene> m_colourInversionScene;
 	std::shared_ptr<Scene> m_relativeLuminanceTintScene;
@@ -82,6 +85,7 @@ private:
 	std::shared_ptr<Scene> m_contrastScreenScene; 
 	std::shared_ptr<Scene> m_saturationScreenScene;
 	std::shared_ptr<Scene> m_visualiseDepthScreenScene;
+	std::shared_ptr<Scene> m_PBRscene;
 	std::shared_ptr<Scene> m_fogScreenScene;
 	std::shared_ptr<Scene> m_shadowPrePassScene;
 	std::shared_ptr<Scene> m_shadowPrePassVisualScreenScene;
@@ -90,6 +94,7 @@ private:
 	std::shared_ptr<Scene> m_particleOverlayScene;
 	std::shared_ptr<Scene> m_finalResult; 
 	std::shared_ptr<Scene> m_combineFowardAndDefScene;
+	std::shared_ptr<Material> m_PBRMat;
 	Renderer m_particleInit;
 	Renderer m_computeRenderer;
 	Renderer m_renderer;			// Renderer to draw the scene
@@ -99,7 +104,10 @@ private:
 	size_t m_combineForwardAndDefPassIdx;
 	size_t m_linDepthPassIdx;
 	size_t m_mainPassIdx;
+
+	size_t m_PBRLightPassIdx;
 	size_t m_deferredPrePasIdx;
+	size_t m_deferredPBRPrePasIdx;
 	size_t m_shadowMapPrepassIdx; 
 	size_t m_shadowMapVisualisationIdx;
 	size_t m_normalVisualIdx;
@@ -117,6 +125,8 @@ private:
 	size_t m_updatePaticlesIdx;
 	size_t m_skyBoxPassIdx;
 	size_t m_forwardPassIdx;
+	size_t CDMNormalsComputeIdx;
+	size_t m_PBRDebugActorIdx;
 	//post processing materials
 	std::shared_ptr<Material> m_invertColourMat; 
 	std::shared_ptr<Material> m_luminanceMat; 
@@ -134,6 +144,9 @@ private:
 	std::shared_ptr<Material> m_normalVisMat;
 	std::shared_ptr<Material> m_normalOverlayMat;
 	std::shared_ptr<Material> m_terrainHeightMat;
+
+	std::shared_ptr<Texture> m_computeTex;
+	std::shared_ptr<Texture> m_heightMapTex;
 	std::vector<std::shared_ptr<Material>> m_postProcessingMaterials;
 
 	std::vector<int> m_postProcessingFlags;
@@ -167,14 +180,15 @@ private:
 	glm::vec3 m_normalisedLightDir = {};
 	glm::vec3 m_dirLightDirection = { -0.041f, -0.312f, -0.472f};
 	glm::mat4 m_lightSpaceMat;
-
+	std::shared_ptr<VAO> m_screenQuadVao;
 
 	int PointLightNum = 7;
 
 	int bilboardNum = 4;
 	float m_bilboardScale = 10.0f;
 	float m_terrainHeightOffset = -20.0f;
-
+	int m_PBRDirLight = 1;
+	int m_PBRPointLight = 1;
 	float m_terrainFreq = 3.526f;
 	float m_terrainAmp = 2.01f;
 	float m_terrainLacrunarity = 2.813f;
@@ -194,6 +208,10 @@ private:
 
 
 	float m_particleAccel = 0.8f;
+
+	float m_metalness = 0.0f;
+	float m_roughness = 0.0f;
+	glm::vec3 m_albedo = { 1.0f,1.0,1.0f };
 
 	std::array<const char*, 6> cubeMapPaths = {
 	"./assets/textures/oGLDevSkybox/sp3right.jpg",

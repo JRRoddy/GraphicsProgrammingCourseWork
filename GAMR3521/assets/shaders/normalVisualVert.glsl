@@ -18,7 +18,7 @@ void main()
   vs_fragmentPos = vec3(u_model * vec4(a_vertexPos,1.0));
 
  
- 
+  gl_Position = vec4(vs_fragmentPos,1.0);
   
  
   

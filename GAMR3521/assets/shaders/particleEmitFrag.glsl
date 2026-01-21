@@ -84,7 +84,6 @@ void main()
  //particleColour *= alpha;
   
  
-
   
 
  g_position = vec4(fragPos,1.0);

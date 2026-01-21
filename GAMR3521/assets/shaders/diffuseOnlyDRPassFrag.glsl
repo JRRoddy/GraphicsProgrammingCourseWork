@@ -60,8 +60,8 @@ void main()
   float offsetNegate = abs(u_terrainHeightOffset) *  ( (float((u_terrainHeightOffset < 0.0))) * 2.0 - 1.0);
 
 
-  g_position = vec4(fragmentPos,1.0);
-  g_normal = vec4(blendNormal,1.0);
+  g_position = vec4(fragmentPos,0.0);
+  g_normal = vec4(fragNormal,0.0);
   vec3 diffuse = texture(u_albedoMap,texCoord).rgb;
 
   // calcuate surface colour based on height
@@ -74,7 +74,7 @@ void main()
   vec3 col2 = vec3(0.6,0.2,0.1);
   vec3 heightColour = mix(col1,col2,smoothstep(0.0,mid + mid * 0.5, fragmentPos.y  + offsetNegate));
   vec3 finalColour =  heightColour * u_heightColActive + terrainColour *( 1.0 - u_heightColActive);
-  g_diffSpec = vec4(finalColour ,specular);
+  g_diffSpec = vec4(finalColour ,0.0);
   
   
      

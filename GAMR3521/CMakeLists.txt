@@ -57,6 +57,11 @@ set (PROJECT_SHADER_FILES
         "assets/shaders/particleEmitFrag.glsl"
         "assets/shaders/combineForwardAndDepthVert.glsl"
         "assets/shaders/combineForwardAndDepthFrag.glsl"
+	"assets/shaders/ShipPBRDeferredFrag.glsl"
+	"assets/shaders/PBRVert.glsl"
+	"assets/shaders/PBRFrag.glsl"
+        "assets/shaders/PBRDebugFrag.glsl"
+ 	"assets/shaders/PBRDebugVert.glsl"
 
 )
 

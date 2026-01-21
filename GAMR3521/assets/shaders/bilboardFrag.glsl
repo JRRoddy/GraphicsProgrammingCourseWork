@@ -24,14 +24,14 @@ void main()
     discard;
   }
   
-  g_position = vec4(fragmentPosition,1.0);
-  g_normal = vec4(normal,1.0);
+  g_position = vec4(fragmentPosition,0.0);
+  g_normal = vec4(normal,0.0);
 
 
   
   
 
-  g_diffSpec = diff;
+  g_diffSpec = vec4(diff.rgb,0.0);
 
 }
 
