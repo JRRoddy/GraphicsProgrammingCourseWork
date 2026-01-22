@@ -62,6 +62,7 @@ set (PROJECT_SHADER_FILES
 	"assets/shaders/PBRFrag.glsl"
         "assets/shaders/PBRDebugFrag.glsl"
  	"assets/shaders/PBRDebugVert.glsl"
+        "assets/shaders/InitIBLEnviromentMap.glsl"
 
 )
 

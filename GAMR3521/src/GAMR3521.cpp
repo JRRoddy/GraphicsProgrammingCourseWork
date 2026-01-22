@@ -30,6 +30,45 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	m_particleInit = Renderer();
 	m_computeRenderer = Renderer();
+	m_initIBL = Renderer();
+
+
+
+	ShaderDescription computeEnvironementMap;
+	computeEnvironementMap.type = ShaderType::compute;
+	computeEnvironementMap.computeSrcPath = "./assets/shaders/InitIBLEnviromentMap.glsl";
+
+	std::shared_ptr<Shader> computeEnvironementMapShader = std::make_shared<Shader>(computeEnvironementMap);
+	std::shared_ptr<Material> computeEnvMapMat = std::make_shared<Material>(computeEnvironementMapShader);
+	std::shared_ptr<Texture> envMap = std::make_shared<Texture>("./assets/textures/attic.jpg");
+	computeEnvMapMat->setValue("u_envMap", envMap);
+	
+	TextureDescription cubeMapDesc;
+	cubeMapDesc.width = 1024;
+	cubeMapDesc.height = 1024;
+	cubeMapDesc.channels = 4;
+	cubeMapDesc.type = TextureDataType::HDR;
+
+	
+	std::shared_ptr<CubeMap> EnvMap = std::make_shared<CubeMap>(cubeMapDesc,1);
+	ComputePass initIBLEnvi;
+	initIBLEnvi.material = computeEnvMapMat;
+	initIBLEnvi.barrier = MemoryBarrier::ShaderImageAccess;
+	initIBLEnvi.workgroups = { 32,32,6 };
+	ImageDescWithCubeMap enviromentDesc;
+	enviromentDesc.cubeMap = EnvMap; 
+	enviromentDesc.imageUnit = initIBLEnvi.material->m_shader->m_imageBindingPoints["outputCubeMap"];
+	enviromentDesc.access = TextureAccess::ReadWrite;
+	
+	
+	Image EnvImage = Image(enviromentDesc);
+
+	initIBLEnvi.images.push_back(EnvImage);
+
+
+    m_initIBL.addComputePass(initIBLEnvi);
+
+
 	ShaderDescription computeHeightMap;
 	computeHeightMap.computeSrcPath = "./assets/shaders/heightMapCompute.glsl";
 	computeHeightMap.type = ShaderType::compute;
@@ -397,7 +436,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	std::shared_ptr<Material> skyBoxMat = std::make_shared<Material>(skyBoxShader, "u_model");
 
-	skyBoxMat->setValue("u_cubeMap", skyBoxMap);
+	skyBoxMat->setValue("u_cubeMap", EnvMap);
 
 	createActor(glm::vec3(0.0f, 0.0f, 0.0f), skyBoxVao, skyBoxMat, m_skyBoxIdx, m_skyboxScene);
 
@@ -900,7 +939,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	SetUpPostProcessingFlags();
 
 	m_particleInit.render();
-
+	
 
 
 }
@@ -912,7 +951,7 @@ void MainLayer::onRender() const
 {
 	m_computeRenderer.render();
 	m_renderer.render();
-	
+	m_initIBL.render();
 
 }
 
@@ -940,14 +979,7 @@ void MainLayer::onUpdate(float timestep)
 	defferedPass.setCachedValue("b_camera", "u_view", defferedPass.camera.view);
 	defferedPass.setCachedValue("b_camera", "u_viewPos", camera.translation);
 
-	RenderPass& defferedPBRPass = m_renderer.getRenderPass(m_deferredPBRPrePasIdx);
-
-	defferedPBRPass.setCachedValue("b_camera", "u_view", defferedPass.camera.view);
-	defferedPBRPass.setCachedValue("b_camera", "u_viewPos", camera.translation);
-
-	/*RenderPass& forwardPass = m_renderer.getRenderPass(m_forwardPassIdx);
-	forwardPass.setCachedValue("b_camera", "u_view", defferedPass.camera.view);
-	forwardPass.setCachedValue("b_camera", "u_viewPos", camera.translation);*/
+	
 
 
 	auto& pass = m_renderer.getRenderPass(m_mainPassIdx);
@@ -958,13 +990,7 @@ void MainLayer::onUpdate(float timestep)
 	m_lightPassScene->m_directionalLights.at(0).direction = glm::normalize(m_dirLightDirection);
 	pass.setCachedValue("b_lights", "dLight.direction", m_lightPassScene->m_directionalLights.at(0).direction);
 
-	/*auto& PBRpass = m_renderer.getRenderPass(m_PBRLightPassIdx);
-
-
-	pass.setCachedValue("b_camera", "u_view", defferedPass.camera.view);
-	pass.setCachedValue("b_camera", "u_viewPos", camera.translation);
-	pass.setCachedValue("b_lights", "dLight.direction", m_lightPassScene->m_directionalLights.at(0).direction);*/
-
+	
 
 	// ensure that skybox wont move with view matrix 
 	m_skyboxScene->m_actors.at(m_skyBoxIdx).material->setValue("u_skyBoxView", glm::mat4(glm::mat3(defferedPass.camera.view)));

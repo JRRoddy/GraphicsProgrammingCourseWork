@@ -149,6 +149,11 @@ private:
 	std::shared_ptr<Texture> m_heightMapTex;
 	std::vector<std::shared_ptr<Material>> m_postProcessingMaterials;
 
+	Renderer m_initIBL;
+
+
+
+
 	std::vector<int> m_postProcessingFlags;
 	std::vector<std::string> m_PostProcessingNames;
 	float m_screenWidth; 
