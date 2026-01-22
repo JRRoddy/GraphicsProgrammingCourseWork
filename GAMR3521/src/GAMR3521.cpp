@@ -300,7 +300,9 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	std::shared_ptr<Texture> modelNormalTexture = std::make_shared<Texture>("./assets/models/Vampire/textures/normal.png");
 
 	m_PBRMat = std::make_shared<Material>(PBRShader);
-	m_PBRMat->setValue("u_ambientFactor", 0.3f);
+	m_PBRMat->setValue("u_ambientFactor", 0.03f);
+	m_PBRMat->setValue("u_PBRDebugEnabled", m_PBRDebugForTexturedModels);
+
 	//ModelMaterial->setValue("u_albedo", glm::vec3(1.0f)); 
 	/*m_PBRMat->setValue("u_albedoMap", modelDiffuseTexture);
 	m_PBRMat->setValue("u_specularMap", modelSpecularTexture);
@@ -335,7 +337,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	std::shared_ptr<VAO> shipDepthVao = std::make_shared<VAO>(shipModel.m_meshes[0].indices);
 	shipDepthVao->addVertexBuffer(shipModel.m_meshes[0].positions,depthLayout);
-	createActor(glm::vec3(0.0f, 5.0f, -15.0f), shipModelVAO, shipMat,shipDepthVao,m_shadowPrePassMat, {0.2,0.2,0.2},m_scene);
+	createActor(glm::vec3(13.0f, 2.0f, -15.0f), shipModelVAO, shipMat,shipDepthVao,m_shadowPrePassMat, {0.2,0.2,0.2},m_scene);
 	ShaderDescription sandingShaderDesc;
 	sandingShaderDesc.type = ShaderType::geometry;
 	sandingShaderDesc.vertexSrcPath = "./assets/shaders/sandingVert.glsl";
@@ -416,8 +418,11 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 
 	// add a camera to the scene 
 	Actor camera;
+	camera.translation = glm::vec3(5.0f, -3.0f, 2.0f);
+	camera.recalc();
 	// take the camera id using the size before pushing back to get the index
 	m_cameraIdx = m_scene->m_actors.size();
+	
 	m_scene->m_actors.push_back(camera);
 
 	// sepcifcy that we want the colour buffer to use HDR and set sample to true meaning it will be used 
@@ -516,6 +521,8 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	Actor PBRDebugActor;
 	PBRDebugActor.geometry = ModelVAO;
 	PBRDebugActor.material = PBRDebugMat;
+	PBRDebugActor.depthMaterial = m_shadowPrePassMat;
+	PBRDebugActor.depthGeometry = modelVaoDepth;
 
 	PBRDebugActor.translation = glm::vec3(5.0f, -3.0f, -3.0f);
 	PBRDebugActor.recalc();
@@ -609,7 +616,6 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_PBRMat->setValue("u_diffSpecMap", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(2));
 	m_PBRMat->setValue("u_prePassDepthTexture", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(4));
 	m_PBRMat->setValue("u_skyBoxColBuffer", m_renderer.getRenderPass(m_skyBoxPassIdx).target->getTarget(0));
-	m_PBRMat->setValue("u_fragmentId", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(3));
 	m_PBRMat->setValue("u_useDirLight", m_PBRDirLight);
 	m_PBRMat->setValue("u_usePointLight", m_PBRDirLight);
 
@@ -1073,6 +1079,8 @@ void MainLayer::onImGUIRender()
 
 	}
 
+
+
 	
   ImGui::End();
 
@@ -1242,20 +1250,29 @@ void MainLayer::onImGUIRender()
 
   ImGui::Begin("PBR Debug");
    
+  if (ImGui::Checkbox("debug textured models", (bool*)&m_PBRDebugForTexturedModels)) 
+  {
+	  m_PBRMat->setValue("u_PBRDebugEnabled", m_PBRDebugForTexturedModels);
+  
+  }
+
+
+
    if(ImGui::SliderFloat("metallic",&m_metalness,0.0f,1.0f))
    {
 	   m_scene->m_actors.at(m_PBRDebugActorIdx).material->setValue("u_metallic", m_metalness);
-	    
+	   m_PBRMat->setValue("u_metallic", m_metalness);
    }
    if (ImGui::SliderFloat("roughness", &m_roughness, 0.0f, 1.0f))
    {
 	   m_scene->m_actors.at(m_PBRDebugActorIdx).material->setValue("u_roughness", m_roughness);
+	   m_PBRMat->setValue("u_roughness", m_roughness);
 
    }
-   if (ImGui::SliderFloat3("roughness", &m_albedo.x, 0.0f, 1.0f))
+   if (ImGui::SliderFloat3("albedo", &m_albedo.x, 0.0f, 1.0f))
    {
 	   m_scene->m_actors.at(m_PBRDebugActorIdx).material->setValue("u_albedo", m_albedo);
-
+	   m_PBRMat->setValue("u_albedo", m_albedo);
    }
 
    if(ImGui::Checkbox("use point lights",(bool*)&m_PBRPointLight))
@@ -1537,6 +1554,10 @@ void MainLayer::initLightPass(std::shared_ptr<VAO> screenQuad, FBOLayout lightPa
 	m_PBRMat->setValue("u_prePassDepthTexture", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(4));
 	m_PBRMat->setValue("u_skyBoxColBuffer", m_renderer.getRenderPass(m_skyBoxPassIdx).target->getTarget(0));
 	m_PBRMat->setValue("u_fragmentId", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(3));
+	m_PBRMat->setValue("u_metallic", m_metalness);
+	m_PBRMat->setValue("u_roughness", m_roughness);
+	m_PBRMat->setValue("u_albedo", m_albedo);
+
 	//m_PBRMat->setValue("u_forwardDepth", m_renderer.getRenderPass(m_forwardPassIdx).target->getTarget(1));
 	//m_PBRMat->setValue("u_forwardCol", m_renderer.getRenderPass(m_forwardPassIdx).target->getTarget(0));
 

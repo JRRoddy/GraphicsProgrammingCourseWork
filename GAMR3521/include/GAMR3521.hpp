@@ -194,6 +194,7 @@ private:
 	float m_terrainLacrunarity = 2.813f;
 	float m_terrainPersistance = 0.570f;
 	int m_terrainGenOctaves = 4;
+	int m_PBRDebugForTexturedModels = 0;
 
 	int m_useRidgedNoise = 0;
 	int m_useFBMNoise = 1;

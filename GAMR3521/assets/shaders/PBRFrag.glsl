@@ -46,13 +46,16 @@ uniform sampler2D u_forwardDepth;
 uniform sampler2D u_forwardCol;
 uniform sampler2D u_skyBoxColBuffer;
 uniform float u_ambientFactor;
+uniform float u_metallic;
+uniform float u_roughness;
+
 int u_shadowSampleRadius  = 1 ;
 uniform int u_antiAliasingOn;
 
 uniform mat4 u_lightSpaceMatrix;
 uniform int u_usePointLight;
 uniform int u_useDirLight;
-
+uniform vec3 u_albedo;
 
 
 
@@ -91,8 +94,8 @@ vec3 getSpotLight(int idx);
 vec4 fragmentCol = texture(u_fragmentPositions,texCoord);
 
 vec3 fragmentPos = fragmentCol.rgb;
-float metallic = fragmentCol.a;
-
+float metallic = fragmentCol.a ;
+uniform int u_PBRDebugEnabled;
 
 vec4 fragmentPosLightSpace  = u_lightSpaceMatrix * vec4(fragmentPos,1.0);  
 
@@ -131,6 +134,14 @@ void main()
    
    }
    
+   if(u_PBRDebugEnabled > 0)
+   {
+      metallic = u_metallic;
+	  roughness = u_roughness;
+	  albedoColour = u_albedo;
+   
+   }
+
    
 	vec3 result = vec3(0.0, 0.0, 0.0); 
 	
@@ -225,11 +236,12 @@ vec3 getDirectionalLight(vec3 f0)
 	vec3 specularContrib = numerator / denom;
 
 
+
 	vec3 ambient = vec3(1.0) * u_ambientFactor * albedoColour;
 
 
-
-	return (ambient + (diffuseContrib + specularContrib)) * dLight.colour;
+	float isInShadow = shadowContribution();
+	return (ambient + ((1.0 - isInShadow) * (diffuseContrib + specularContrib))) * dLight.colour;
 
 
 
@@ -349,9 +361,9 @@ vec3 getPointLight(int idx,vec3 f0)
 	vec3 specularContrib = (numerator / denom);
 
 
-	vec3 ambient = vec3(1.0) * 0.001 * albedoColour;
+	vec3 ambient = vec3(1.0) * u_ambientFactor * albedoColour;
 	
-
+	
 	return (ambient + ((diffuseContrib + specularContrib) * attn)) * pLights[idx].colour;
 
 
