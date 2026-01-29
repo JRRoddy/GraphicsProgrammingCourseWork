@@ -4,7 +4,7 @@ layout(location = 0) out vec4 colour;
 
 
 #define PI 3.1415926538
-
+#define MAXREFLECTIONLOD 4.0
 in vec2 texCoord;
 
 
@@ -38,12 +38,11 @@ const int numSpotLights = 1;
 
 
 
-
+uniform  samplerCube u_irradianceMap;
 uniform sampler2D u_prePassDepthTexture;
 uniform sampler2D u_shadowMap;
 uniform sampler2D u_fragmentId;
-uniform sampler2D u_forwardDepth;
-uniform sampler2D u_forwardCol;
+
 uniform sampler2D u_skyBoxColBuffer;
 uniform float u_ambientFactor;
 uniform float u_metallic;
@@ -58,6 +57,9 @@ uniform int u_useDirLight;
 uniform vec3 u_albedo;
 
 
+
+uniform samplerCube u_prefilterMap;
+uniform sampler2D u_BDRFLookup;
 
 
 
@@ -89,7 +91,7 @@ vec3 getDirectionalLight();
 vec3 getPointLight(int idx,vec3 f0);
 vec3 getSpotLight(int idx);
 //float lineariseDepth(float zDepth);
-
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness);
 // values sampled from the deffered rendering pass 
 vec4 fragmentCol = texture(u_fragmentPositions,texCoord);
 
@@ -109,6 +111,8 @@ float roughness = normalCol.a;
 vec3 albedoColour = texture(u_diffSpecMap,texCoord).rgb; 
 
 
+vec3 irradiance = texture(u_irradianceMap,normal).rgb;
+vec3 aAlbedo = irradiance * albedoColour;
 float GGX(float NdotH);
 float shadowContribution();
 
@@ -119,9 +123,7 @@ float GeometrySmith(float NDotL,float NDotV);
 float GGXSchlickBeckman(float NDot);
 void main()
 {
- 
-   vec4 forwardDepth = texture(u_forwardDepth,texCoord);
-   vec4 forwardCol = texture(u_forwardCol,texCoord);
+   
    float curDepth = texture(u_prePassDepthTexture,texCoord).r;
 
 
@@ -157,7 +159,7 @@ void main()
 	
 	for(int i = 0; i < numPointLights; i++)
 	{
-		result += getPointLight(i,f0) * float(u_usePointLight);
+		//result += getPointLight(i,f0) * float(u_usePointLight);
 	}
 	
 	for(int i = 0; i <numSpotLights; i++)
@@ -181,6 +183,16 @@ void main()
 vec3 getDirectionalLight(vec3 f0)
 {
 	
+    vec3 reflection = reflect(-viewDir,normal);
+    vec3 prefilterColour = textureLod(u_prefilterMap, reflection, 1.0).rgb;
+
+    vec3 aks = fresnelSchlickRoughness(max(dot(normal, viewDir), 0.0), f0, roughness);  
+    vec2 envBDRF = texture(u_BDRFLookup,vec2(max(dot(normal,viewDir),0.0),roughness)).xy;   
+	//vec2 envBDRF = texture(u_BDRFLookup,vec2(0.0,0.0)).xy; 
+	vec3 aSpecular = prefilterColour * (aks * envBDRF.x + envBDRF.y);
+
+
+
 	vec3 negateDir = normalize(-dLight.direction);
 
 	vec3 halfwayVector = normalize(viewDir + negateDir);
@@ -209,6 +221,7 @@ vec3 getDirectionalLight(vec3 f0)
 	// division by pi ensures that energy conservation is adhered to as light is diffused equally in all directions 
 	// for every unit of light hiting the surfa ethe same amount is reflected back over the heimsphere 
 	// ensuring that the amount of light reflected back is equal in terms of diffuse making the colour more realistic
+
 	vec3 diffuseContrib = (diffuseWeight * albedoColour / PI) * normalDotL;
 
 	// normal distruction(D term) essentially descirbes the number of imcro facets that are aligned with the 
@@ -230,14 +243,24 @@ vec3 getDirectionalLight(vec3 f0)
 	// makes used ot the descirbed normal distribution and the fresnel effect 
 
 	vec3 numerator = alignmentWithMicroFacets * G * fresnelEnhancedReflecivity;
-	
+	// n dot v takes into account directio of fragement to camera 
 	float denom = 4.0 * NdotV * normalDotL + 0.0001;
 
 	vec3 specularContrib = numerator / denom;
 
 
 
-	vec3 ambient = vec3(1.0) * u_ambientFactor * albedoColour;
+	// ambient lighiting with ibl 
+
+
+	vec3 akd = vec3(1.0) - aks;
+
+	akd *= (1.0 - metallic);
+
+
+	
+	 
+	vec3 ambient = aAlbedo * akd + aSpecular ;
 
 
 	float isInShadow = shadowContribution();
@@ -286,6 +309,14 @@ float GeometrySmith(float NDotL,float NDotV)
 
 }
 
+// as indirect ambient lighting is coming from all directions across the hemishpehere orinated around the normal 
+// there is no single halfway vector that can be used to simulate the fresnel response therefore we use the 
+// view direction dot with the normal as cosTheta instead while also taking into account roughness to dampen the 
+// reflective ratio of the surface ensuring that relfections from  indirect light follow the same rules as directional light 
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
 
 float GGXSchlickBeckman(float NDot)
 {

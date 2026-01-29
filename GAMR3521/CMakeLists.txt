@@ -64,6 +64,8 @@ set (PROJECT_SHADER_FILES
  	"assets/shaders/PBRDebugVert.glsl"
         "assets/shaders/InitIBLEnviromentMap.glsl"
         "assets/shaders/InitIBLIrMap.glsl"
+        "assets/shaders/specualrIndirectReflectance.glsl"
+        "assets/shaders/BDRFPreCompute.glsl"
 
 )
 

@@ -13,6 +13,16 @@ struct particle
 
 
 };
+struct vertex
+{
+
+	vertex(float x, float y, float z)
+	{
+		position = { x,y,z };
+	}
+	glm::vec3 position;
+ 
+};
 
 struct shadowMapVars {
 	glm::vec3 center = glm::vec3(0.0f,0.0f,0.0f);
@@ -64,12 +74,12 @@ protected:
 	void makePaticleEmitter(glm::vec3 origin,std::shared_ptr<Material> particleMat,std::shared_ptr<Scene> scene,std::shared_ptr<Texture> texture, std::shared_ptr<VAO> vao,float particleBilBoardScale);
 	void SetUpPostProcessingFlags();
 	void makeForwardParticlePass(FBOLayout layout);
-	void makeComputePasses();
 	void makePaticleComputePasses(glm::vec3 origin);
+	void PreComputeSpecualrIndirectReflectance();
 private:
 
 	std::shared_ptr<SSBO> m_initParticleSSBO;
-
+	std::shared_ptr<Material> m_particleMat;
 	std::shared_ptr<Scene> m_scene; // Scene where actors reside
 	std::shared_ptr<Scene> m_forwardPassScene;
 	std::shared_ptr<Scene> m_skyboxScene;
@@ -149,7 +159,14 @@ private:
 	std::shared_ptr<Texture> m_heightMapTex;
 	std::vector<std::shared_ptr<Material>> m_postProcessingMaterials;
 
-	Renderer m_initIBL;
+
+	std::shared_ptr<Material> m_prefilterEnvMapMat;
+
+
+	Renderer m_initIBLEnv;
+	Renderer m_initIBLIr;
+	Renderer m_initIBLPrefilterSpec;
+	Renderer m_initBDRFlookUp;
 
 
 
@@ -272,5 +289,50 @@ private:
 		-100.f, -100.f,  100.f,
 		 100.f, -100.f,  100.f
 	};
+	std::vector<vertex> m_cubeMapVerts = {
+		// positions   
+		
 
-};
+		vertex(-100.f, -100.f,  100.f),
+		vertex(-100.f, -100.f, -100.f),
+		vertex(-100.f,  100.f, -100.f),
+		vertex(-100.f,  100.f,  100.f),
+
+
+		vertex(100.f, -100.f, -100.f),
+		vertex(100.f, -100.f,  100.f),
+		vertex(100.f,  100.f,  100.f),
+		vertex(100.f,  100.f, -100.f),
+
+		vertex(-100.f,  100.f, -100.f),
+		vertex(100.f,  100.f, -100.f),
+		vertex(100.f,  100.f,  100.f),
+		vertex(-100.f,  100.f,  100.f),
+	    
+		vertex(-100.f, -100.f, -100.f),
+		vertex(-100.f, -100.f,  100.f),
+		vertex(100.f, -100.f, -100.f),
+		vertex(100.f, -100.f,  100.f),
+		
+		vertex(-100.f, -100.f,  100.f),
+		vertex(-100.f,  100.f,  100.f),
+		vertex(100.f,  100.f,  100.f),
+		vertex(100.f, -100.f,  100.f),
+
+		vertex(-100.f,  100.f, -100.f),
+		vertex(-100.f, -100.f, -100.f),
+		vertex( 100.f, -100.f, -100.f),
+		vertex( 100.f,  100.f, -100.f),
+
+
+
+
+	
+
+	
+
+
+		
+
+	};								 
+};									 

@@ -1,9 +1,9 @@
 #version 460 core 
 
 out vec4 colour;
-layout(location = 0) out vec4 g_position;
-layout(location = 1) out vec4 g_normal;
-layout(location = 2) out vec4 g_diffSpec;
+//layout(location = 0) out vec4 g_position;
+//layout(location = 1) out vec4 g_normal;
+//layout(location = 2) out vec4 g_diffSpec;
 
 uniform sampler2D u_particleTexture;
 
@@ -55,18 +55,27 @@ layout (std140, binding = 0) uniform b_camera
 
 
 
-float maxDist = 1.1;
+uniform sampler2D u_deferredCol;
+uniform sampler2D u_deferredDepth;
+float maxDist = 5.0;
+in vec4 fragClipSpace;
 in float particleAge;
 in vec3 particleOrigin;
 in vec3 particlePos;
-vec4 particleCol = texture(u_particleTexture,texCoord);
 
 vec3 dirLight();
 
 void main()
 {
-  
-  
+
+ 
+
+   
+
+ vec4 particleCol = texture(u_particleTexture,texCoord);
+ 
+ 
+
  
   
 
@@ -81,18 +90,17 @@ void main()
  vec3 start  = vec3(1.0,1.0,0.0);
  vec3 particleColour = mix(start,end,alpha);
 
- //particleColour *= alpha;
+ //particleColour ;
   
  
   
 
- g_position = vec4(fragPos,1.0);
- g_normal = vec4(normal,1.0);
- g_diffSpec = vec4(particleColour,alpha);  
+ //g_position = vec4(fragPos,0.0);
+ //g_normal = vec4(normal,0.0);
+ //g_diffSpec = vec4(particleColour,alpha);  
 
-// vec3 lightColour = particleColour.rgb * dirLight();
-
-// colour = vec4(lightColour, alpha);
+  vec3 lightColour = particleColour.rgb * dirLight();
+  colour = vec4(lightColour, alpha);
 
  
  

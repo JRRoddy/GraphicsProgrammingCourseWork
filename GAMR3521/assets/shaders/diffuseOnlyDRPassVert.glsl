@@ -20,7 +20,7 @@ void main()
 	vs_fragmentPos = vec3(u_model * vec4(a_vertexPosition, 1.0));
 	vs_normal = vec3(0.0,1.0,0.0);
 	vs_texCoord = a_texCoord;
-
+	gl_Position = vec4(vs_fragmentPos,1.0);
 	
 
 

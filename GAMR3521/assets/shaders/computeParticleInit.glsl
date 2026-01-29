@@ -6,10 +6,14 @@ layout(local_size_x = 16, local_size_y = 16) in;
 
 
 
+
 uniform vec3 u_particleOrigin;
 float maxFlameWidth = 0.5;
 float minFlameWidth = -0.5;
-float maxAge = 1.5;
+float spawnLocationWidth = 5.0;
+float spawnLocationLength = 5.0;
+
+float maxAge = 5.0;
 float minAge = 1.0;
 float maxAccel = 0.8;
 float minAccel = 0.5;
@@ -35,7 +39,7 @@ vec4 calcVelocity();
 vec3 randomDirection(vec2 seed);
 vec3 randomDirectionXY(vec2 seed);
 
-
+vec3 randomSpawnLocation(vec2 seed);
 
 float rand(vec2 seed);
 vec2 randSeed = vec2(gl_GlobalInvocationID.xy);
@@ -48,11 +52,11 @@ void main()
   uint gridId = uint(gridCoords.x) * gridWidth + uint(gridCoords.y);
 
   float angle =  rand(randSeed) * (2*PI);
-  particles[gridId].position.w = calcAge();
+  particles[gridId].position.w = maxAge;
   vec3 vel = randomDirectionXY(randSeed);
    
-  particles[gridId].origin.xyz = u_particleOrigin;
-  particles[gridId].position.xyz = u_particleOrigin;
+  particles[gridId].origin.xyz = randomSpawnLocation(randSeed);
+  particles[gridId].position.xyz = randomSpawnLocation(randSeed);
   particles[gridId].origin.w = particles[gridId].position.w;
   particles[gridId].velocity = vec4(vel,calcAccel());
   
@@ -96,18 +100,28 @@ vec3 randomDirection(vec2 seed) {
 
     float theta = rand(seed) * 2.0 * 3.14159;
     float phi = acos(2.0 * rand(seed * 2.0) - 1.0);
-    float x = sin(phi) * cos(theta) ;
+    float x = sin(phi) * cos(theta);
     float y = sin(phi) * sin(theta);
     float z = cos(phi);
     return vec3(x, y, z);
 }
 
 vec3 randomDirectionXY(vec2 seed) {
-
-    float theta = rand(seed) * 2.0 * 3.14159;
-    float phi = acos(2.0 * rand(seed * 2.0) - 1.0);
-    float x = minFlameWidth + (maxFlameWidth - minFlameWidth) * rand(seed);  ;
-    float y = 1.0;
-    float z = 0;
+    
+   
+    float x = rand(seed);
+    float y = -1.0 ;
+    float z = rand(seed);
     return vec3(x, y, z);
+}
+
+
+vec3 randomSpawnLocation(vec2 seed)
+{
+   vec3 spawnLocation = vec3(0.0);
+    
+   spawnLocation.x  = u_particleOrigin.x + spawnLocationWidth * (rand(seed * 8.0) * 2.0 -1.0);  
+   spawnLocation.y  = u_particleOrigin.y;
+   spawnLocation.z =  u_particleOrigin.z + spawnLocationLength * (rand(seed * 2.0) * 2.0 -1.0);  
+   return spawnLocation;
 }

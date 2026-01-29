@@ -16,7 +16,7 @@ layout (std140, binding = 0) uniform b_camera
 
 
 uniform float u_particleScale;
-
+out vec4 fragClipSpace;
 out vec3 fragPos;
 out vec2 texCoord;
 out vec3 normal;
@@ -40,22 +40,26 @@ void main()
    normal  = forward;
    fragPos = particlePos - right - up;
    texCoord = vec2(0.0,0.0);
+   fragClipSpace =  u_projection * u_view * vec4(fragPos,1.0);
    gl_Position = u_projection * u_view * vec4(fragPos,1.0);
    EmitVertex(); 
   
    fragPos = particlePos + right - up;
    texCoord = vec2(1.0,0.0);
+   fragClipSpace =  u_projection * u_view * vec4(fragPos,1.0);
    gl_Position = u_projection * u_view * vec4(fragPos,1.0);
    EmitVertex();
    
 
    fragPos = particlePos - right  + up;
    texCoord = vec2(0.0,1.0);
+   fragClipSpace =  u_projection * u_view * vec4(fragPos,1.0);
    gl_Position = u_projection * u_view * vec4(fragPos,1.0);
    EmitVertex();
 
    fragPos = particlePos + right + up;
    texCoord = vec2(1.0,1.0);
+   fragClipSpace =  u_projection * u_view * vec4(fragPos,1.0);
    gl_Position = u_projection * u_view * vec4(fragPos,1.0);
    EmitVertex();
   

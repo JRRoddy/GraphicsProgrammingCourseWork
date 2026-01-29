@@ -8,10 +8,10 @@ layout(triangle_strip, max_vertices  = 5) out;
 
 // we take in 3 points from the vertex shader that will be related to the gl_position calculated in the vertex shader of the now fragments
 // there will be 3 of each piece of data as we have three points coming into the geomtery shader as the default primitve is triangles    
-in vec3 tse_fragmentPos[];
-in vec2 tse_texCoord[];
+in vec3 vs_fragmentPos[];
+in vec2 vs_texCoord[];
 out mat3 TBN;
-in vec3 tse_normal[];
+in vec3 vs_normal[];
 
 layout (std140, binding = 0) uniform b_camera
 {
@@ -21,7 +21,6 @@ layout (std140, binding = 0) uniform b_camera
 };
 
 out vec3 fragmentPos;
-out vec3 normal;
 out vec2 texCoord;
 
 uniform int u_shouldUseCDM;
@@ -29,23 +28,23 @@ uniform int u_shouldUseCDM;
 void main()
 {
  
-    vec3 v0 = tse_fragmentPos[1] - tse_fragmentPos[0];
+    vec3 v0 = vs_fragmentPos[1] - vs_fragmentPos[0];
 
-    vec3 v1 = tse_fragmentPos[2] - tse_fragmentPos[0];
+    vec3 v1 = vs_fragmentPos[2] - vs_fragmentPos[0];
 
     
-    normal =  normalize(cross(v0,v1)) ; 
+    vec3 normal =  normalize(cross(v0,v1)) ; 
 
-    vec2 uv1 = tse_texCoord[1] - tse_texCoord[0];
-    vec2 uv2 = tse_texCoord[2] - tse_texCoord[0];
+    vec2 uv1 = vs_texCoord[1] - vs_texCoord[0];
+    vec2 uv2 = vs_texCoord[2] - vs_texCoord[0];
 
-    float r =  1.0 / (uv1.x * uv2.y - uv2.x * uv1.y);
+    float r =  1.0 / (uv1.x * uv2.y -  uv1.y * uv2.x);
 
-    vec3 bitangent  = (v0 * uv2.y - v1 * uv1.y) * r;
-    vec3 tangent  = (v1 * uv1.x - v0 * uv2.y) * r;
+    vec3 tangent  = normalize( (v0 * uv2.y - v1 * uv1.y) * r);
+    vec3 bitangent  = normalize((v1 * uv1.x - v0 * uv2.x) * r);
+
 
     TBN = mat3(tangent,bitangent,normal);
-     
    for(int i = 0; i<3; i++)
    {
      
@@ -55,13 +54,10 @@ void main()
      // by setting the out variables for the fragment shader 
      // to be the data for that particualr index at the current index we are using 
      // this will prime this vertex data to be shipped to the fragment shader individually
-      texCoord = tse_texCoord[i];
-      fragmentPos = tse_fragmentPos[i];
+      texCoord = vs_texCoord[i];
+      fragmentPos = vs_fragmentPos[i];
       
-      if(u_shouldUseCDM == 1)
-      {
-           normal = tse_normal[i];
-      }
+    
 
 
      
