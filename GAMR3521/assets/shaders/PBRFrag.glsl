@@ -159,7 +159,7 @@ void main()
 	
 	for(int i = 0; i < numPointLights; i++)
 	{
-		//result += getPointLight(i,f0) * float(u_usePointLight);
+		result += getPointLight(i,f0) * float(u_usePointLight);
 	}
 	
 	for(int i = 0; i <numSpotLights; i++)
@@ -392,10 +392,9 @@ vec3 getPointLight(int idx,vec3 f0)
 	vec3 specularContrib = (numerator / denom);
 
 
-	vec3 ambient = vec3(1.0) * u_ambientFactor * albedoColour;
 	
 	
-	return (ambient + ((diffuseContrib + specularContrib) * attn)) * pLights[idx].colour;
+	return ((diffuseContrib + specularContrib) * attn) * pLights[idx].colour;
 
 
 }

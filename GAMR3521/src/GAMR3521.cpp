@@ -749,7 +749,7 @@ MainLayer::MainLayer(GLFWWindowImpl& win) : Layer(win)
 	m_PBRMat->setValue("u_prePassDepthTexture", m_renderer.getRenderPass(m_deferredPrePasIdx).target->getTarget(4));
 	m_PBRMat->setValue("u_skyBoxColBuffer", m_renderer.getRenderPass(m_skyBoxPassIdx).target->getTarget(0));
 	m_PBRMat->setValue("u_useDirLight", m_PBRDirLight);
-	//m_PBRMat->setValue("u_usePointLight", m_PBRDirLight);
+	m_PBRMat->setValue("u_usePointLight", m_PBRDirLight);
 	m_PBRMat->setValue("u_irradianceMap", irradienceMap);
 	m_PBRMat->setValue("u_prefilterMap", preFilterMap);
 	m_PBRMat->setValue("u_BDRFLookup", textureBDRF);
@@ -1047,7 +1047,7 @@ void MainLayer::onUpdate(float timestep)
 	{
 		dt = 0.15f;
 	}*/
-//	m_computeRenderer.getComputePass(m_updatePaticlesIdx).material->setValue("dt",dt);
+	//m_computeRenderer.getComputePass(m_updatePaticlesIdx).material->setValue("dt",dt);
 	// Update camera  and its position in UBO
 	auto& camera = m_scene->m_actors.at(m_cameraIdx);
 
@@ -1060,11 +1060,11 @@ void MainLayer::onUpdate(float timestep)
 	m_lightPassScene->m_directionalLights.at(0).direction = glm::normalize(m_dirLightDirection);
 
 	//RenderPass& forwardPass = m_renderer.getRenderPass(m_forwardPassIdx);
-
+	//
 	//forwardPass.camera.updateView(camera.transform);
 	//forwardPass.setCachedValue("b_camera", "u_view", forwardPass.camera.view);
 	//forwardPass.setCachedValue("b_camera", "u_viewPos", camera.translation);
-
+	//
 	//forwardPass.setCachedValue("b_lights", "dLight.direction", m_lightPassScene->m_directionalLights.at(0).direction);
 
 	auto& pass = m_renderer.getRenderPass(m_mainPassIdx);
